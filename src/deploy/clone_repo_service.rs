@@ -1,8 +1,10 @@
-use std::{env, fs};
+use std::cell::RefCell;
 use std::path::Path;
+use std::rc::Rc;
+use std::{env, fs};
 
-use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
 use git2::build::RepoBuilder;
+use git2::{Cred, FetchOptions, RemoteCallbacks};
 use regex::Regex;
 
 use crate::data::repo_info_repository::{RepoInfoEntity, RepoInfoRepository};
@@ -17,7 +19,7 @@ lazy_static! {
 }
 
 pub struct CloneRepoService {
-    repo_info_repo: RepoInfoRepository,
+    repo_info_repo: Rc<RefCell<RepoInfoRepository>>,
 }
 
 struct First {
@@ -32,12 +34,12 @@ struct Second {
 }
 
 impl CloneRepoService {
-    pub fn new(repo_info_repo: RepoInfoRepository) -> CloneRepoService {
+    pub fn new(repo_info_repo: Rc<RefCell<RepoInfoRepository>>) -> CloneRepoService {
         return CloneRepoService { repo_info_repo };
     }
 
     pub fn execute(
-        mut self,
+        self,
         url: &'static str,
         into_dir_path: &'static str,
         ssh_key_name: &'static str,
@@ -120,11 +122,12 @@ impl CloneRepoService {
     }
 
     fn save_repo_info(
-        mut self,
+        self,
         url: &str,
         formatted_repo_path: String,
     ) -> Result<RepoInfoEntity, CloneRepoServiceError> {
         self.repo_info_repo
+            .borrow_mut()
             .save(String::from(url), RepoInfoEntity::new(formatted_repo_path))
             .ok_or(CouldNotSaveRepoInfo)
     }

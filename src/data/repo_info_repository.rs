@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 pub struct RepoInfoEntity {
-    path: String,
+    pub path: String,
 }
 
 impl RepoInfoEntity {
@@ -15,8 +17,8 @@ pub struct RepoInfoRepository {
 }
 
 impl RepoInfoRepository {
-    pub fn new(db: HashMap<String, RepoInfoEntity>) -> RepoInfoRepository {
-        RepoInfoRepository { db }
+    pub fn new(db: HashMap<String, RepoInfoEntity>) -> Rc<RefCell<RepoInfoRepository>> {
+        Rc::new(RefCell::new(RepoInfoRepository { db }))
     }
 
     pub fn save(&mut self, key: String, entity: RepoInfoEntity) -> Option<RepoInfoEntity> {

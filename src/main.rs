@@ -12,7 +12,7 @@ use serde_json::Value;
 use crate::data::repo_info_repository::RepoInfoRepository;
 use crate::deploy::clone_repo_service::CloneRepoService;
 use crate::deploy::deploy_service::DeployService;
-use crate::deploy::schimmelhof::depoy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevService;
+use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevService;
 
 mod data;
 mod deploy;
@@ -24,11 +24,10 @@ async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db = HashMap::new();
-    let repo_info_repo = RepoInfoRepository::new(db);
+    let repository = RepoInfoRepository::new(HashMap::new());
 
-    CloneRepoService::new(repo_info_repo).execute(
-        DeploySchimmelhofApiDevService::new().get_repo_url(),
+    CloneRepoService::new(repository.clone()).execute(
+        DeploySchimmelhofApiDevService::new(repository.clone()).get_repo_url(),
         "/tmp",
         "mini-ci",
     );

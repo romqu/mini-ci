@@ -1,1 +1,1 @@
-pub mod depoy_schimmelhof_api_dev_service;
+pub mod deploy_schimmelhof_api_dev_service;
