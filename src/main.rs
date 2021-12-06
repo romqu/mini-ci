@@ -27,10 +27,12 @@ async fn main() -> std::io::Result<()> {
     let repository = RepoInfoRepository::new(HashMap::new());
 
     CloneRepoService::new(repository.clone()).execute(
-        DeploySchimmelhofApiDevService::new(repository.clone()).get_repo_url(),
+        DeploySchimmelhofApiDevService::new(repository.clone()).ssh_git_url(),
         "/tmp",
         "mini-ci",
     );
+
+    DeploySchimmelhofApiDevService::new(repository).execute(GithubPushEventDto::default());
 
     HttpServer::new(|| App::new().service(web::resource("/payload").route(web::post().to(index))))
         .bind("127.0.0.1:4567")?

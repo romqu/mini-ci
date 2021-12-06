@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::{env, fs};
 
 use git2::build::RepoBuilder;
-use git2::{Cred, FetchOptions, RemoteCallbacks};
+use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
 use regex::Regex;
 
 use crate::data::repo_info_repository::{RepoInfoEntity, RepoInfoRepository};
@@ -33,6 +33,11 @@ struct Second {
     formatted_repo_path: String,
 }
 
+struct Third {
+    formatted_repo_path: String,
+    repository: Repository,
+}
+
 impl CloneRepoService {
     pub fn new(repo_info_repo: Rc<RefCell<RepoInfoRepository>>) -> CloneRepoService {
         return CloneRepoService { repo_info_repo };
@@ -49,7 +54,7 @@ impl CloneRepoService {
             .map(|home_path| self.extract_repo_name(url, home_path))
             .and_then(|first| self.delete_repo_dir(into_dir_path, first))
             .and_then(|second| self.clone_repo(url, ssh_key_name, second))
-            .and_then(|path| self.save_repo_info(url, path));
+            .and_then(|third| self.save_repo_info(url, third));
     }
 
     fn find_home_path(&self) -> Result<String, CloneRepoServiceError> {
@@ -99,7 +104,7 @@ impl CloneRepoService {
         url: &str,
         ssh_key_name: &str,
         second: Second,
-    ) -> Result<String, CloneRepoServiceError> {
+    ) -> Result<Third, CloneRepoServiceError> {
         let formatted_ssh_key_path = format!("{0}/.ssh/{1}", second.home_path, ssh_key_name);
         let repo_path = Path::new(second.formatted_repo_path.as_str());
         let ssh_key_path = Path::new(formatted_ssh_key_path.as_str());
@@ -118,17 +123,25 @@ impl CloneRepoService {
         builder
             .clone(url, repo_path)
             .map_err(|_| CouldNotCloneRepo)
-            .map(|_| second.formatted_repo_path)
+            .map(|repo| {
+                Third {
+                    formatted_repo_path: second.formatted_repo_path,
+                    repository: repo,
+                }
+            })
     }
 
     fn save_repo_info(
         self,
         url: &str,
-        formatted_repo_path: String,
+        third: Third,
     ) -> Result<RepoInfoEntity, CloneRepoServiceError> {
         self.repo_info_repo
             .borrow_mut()
-            .save(String::from(url), RepoInfoEntity::new(formatted_repo_path))
+            .save(
+                String::from(url),
+                RepoInfoEntity::new(third.formatted_repo_path, third.repository),
+            )
             .ok_or(CouldNotSaveRepoInfo)
     }
 }

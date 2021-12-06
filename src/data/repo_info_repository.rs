@@ -1,14 +1,16 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use git2::Repository;
 
 pub struct RepoInfoEntity {
     pub path: String,
+    pub repository: Repository
 }
 
 impl RepoInfoEntity {
-    pub fn new(path: String) -> RepoInfoEntity {
-        RepoInfoEntity { path }
+    pub fn new(path: String, repository: Repository) -> RepoInfoEntity {
+        RepoInfoEntity { path, repository }
     }
 }
 
