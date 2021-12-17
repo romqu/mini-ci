@@ -1,9 +1,11 @@
 use crate::deploy::deploy_service::DeployService;
 use crate::{GithubPushEventDto, RepoInfoRepository};
+use cmd_lib::run_cmd;
 use git2::build::CheckoutBuilder;
 use git2::{BranchType, ObjectType};
 use std::cell::RefCell;
 use std::rc::Rc;
+use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevServiceError::*;
 
 pub struct DeploySchimmelhofApiDevService {
     repo_info_repo: Rc<RefCell<RepoInfoRepository>>,
@@ -15,22 +17,29 @@ impl DeploySchimmelhofApiDevService {
     }
 }
 
-impl DeployService for DeploySchimmelhofApiDevService {
+impl DeployService<String, DeploySchimmelhofApiDevServiceError> for DeploySchimmelhofApiDevService {
     fn ssh_git_url(&self) -> &'static str {
         return "git@github.com:romqu/schimmelhof-api.git";
     }
 
-    fn execute(&self, dto: GithubPushEventDto) {
-        self.repo_info_repo
+    fn execute(
+        &self,
+        dto: GithubPushEventDto,
+    ) -> Result<String, DeploySchimmelhofApiDevServiceError> {
+        return self
+            .repo_info_repo
             .borrow()
             .get(self.ssh_git_url())
-            .map(|repo_info| {
-
-                dto.ref_field.rfind("/").unwrap();
+            .ok_or(CouldNotGetRepoInfo)
+            .and_then(|repo_info| {
+                let refs = dto.ref_field;
+                let position = refs.rfind("/").unwrap();
+                let branch_name = &refs[position..];
+                let formatted_branch_name = format!("origin/{}", branch_name);
 
                 let branch = repo_info
                     .repository
-                    .find_branch("origin/mvp", BranchType::Remote)
+                    .find_branch(formatted_branch_name.as_str(), BranchType::Remote)
                     .unwrap();
 
                 let tree = repo_info
@@ -48,7 +57,29 @@ impl DeployService for DeploySchimmelhofApiDevService {
                     .checkout_tree(&git_object, Some(CheckoutBuilder::default().force()))
                     .unwrap();
 
-                repo_info.repository.set_head("refs/heads/mvp").unwrap()
-            });
+                repo_info
+                    .repository
+                    .set_head(refs.as_str())
+                    .map_err(|_| CouldNotSetHead)
+                    .map(|_| repo_info)
+            })
+            .and_then(|repo_info| {
+                let path = &repo_info.path;
+                run_cmd!(
+                    /bin/bash ${path}/deploy.sh -t dev;
+                )
+                .map_err(|error| {
+                    println!("{}", error);
+                    CouldNotExecuteScript
+                })
+            })
+            .map(|_| "".to_string());
     }
+}
+
+#[derive(Debug)]
+pub enum DeploySchimmelhofApiDevServiceError {
+    CouldNotGetRepoInfo,
+    CouldNotSetHead,
+    CouldNotExecuteScript,
 }

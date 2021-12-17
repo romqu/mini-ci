@@ -32,7 +32,9 @@ async fn main() -> std::io::Result<()> {
         "mini-ci",
     );
 
-    DeploySchimmelhofApiDevService::new(repository).execute(GithubPushEventDto::default());
+    let dto = GithubPushEventDto::default();
+    let dto1 = GithubPushEventDto { ref_field: "refs/heads/mvp".to_string(), ..dto };
+    println!("{}", DeploySchimmelhofApiDevService::new(repository).execute(dto1).unwrap().to_string());
 
     HttpServer::new(|| App::new().service(web::resource("/payload").route(web::post().to(index))))
         .bind("127.0.0.1:4567")?
