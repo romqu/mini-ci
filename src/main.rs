@@ -2,7 +2,9 @@
 extern crate lazy_static;
 extern crate regex;
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::env;
 
 use actix_web::web::Json;
 use actix_web::{web, App, HttpResponse, HttpServer};
@@ -24,12 +26,14 @@ async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let ssh_passphrase = env::args().nth(1).unwrap();
     let repository = RepoInfoRepository::new(HashMap::new());
 
     CloneRepoService::new(repository.clone()).execute(
         DeploySchimmelhofApiDevService::new(repository.clone()).ssh_git_url(),
         "/tmp",
         "mini-ci",
+        ssh_passphrase,
     );
 
     let dto = GithubPushEventDto::default();

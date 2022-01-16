@@ -1,11 +1,14 @@
-use crate::deploy::deploy_service::DeployService;
-use crate::{GithubPushEventDto, RepoInfoRepository};
-use cmd_lib::run_cmd;
-use git2::build::CheckoutBuilder;
-use git2::{BranchType, ObjectType};
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevServiceError::*;
+
+use cmd_lib::run_cmd;
+use git2::{Branch, BranchType, ObjectType};
+use git2::build::CheckoutBuilder;
+
+use crate::{GithubPushEventDto, RepoInfoRepository};
+use crate::data::repo_info_repository::RepoInfoEntity;
+use crate::deploy::deploy_service::DeployService;
+use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevServiceError::{CouldNotExecuteScript, CouldNotGetBranch, CouldNotGetRepoInfo, CouldNotSetHead};
 
 pub struct DeploySchimmelhofApiDevService {
     repo_info_repo: Rc<RefCell<RepoInfoRepository>>,
@@ -63,22 +66,27 @@ impl DeployService<String, DeploySchimmelhofApiDevServiceError> for DeploySchimm
                     .map_err(|_| CouldNotSetHead)
                     .map(|_| repo_info)
             })
-            .and_then(|repo_info| {
-                let path = &repo_info.path;
-                run_cmd!(
-                    /bin/bash ${path}/deploy.sh -t dev;
-                )
-                .map_err(|error| {
-                    println!("{}", error);
-                    CouldNotExecuteScript
-                })
-            })
+            .and_then(|repo_info| self.execute_deploy_script(repo_info))
             .map(|_| "".to_string());
+    }
+}
+
+impl DeploySchimmelhofApiDevService {
+    fn execute_deploy_script(
+        &self,
+        repo_info: &RepoInfoEntity,
+    ) -> Result<(), DeploySchimmelhofApiDevServiceError> {
+        let path = &repo_info.path;
+        run_cmd!(
+            /bin/bash ${path}/deploy.sh -t dev;
+        )
+        .map_err(|_| CouldNotExecuteScript)
     }
 }
 
 #[derive(Debug)]
 pub enum DeploySchimmelhofApiDevServiceError {
+    CouldNotGetBranch,
     CouldNotGetRepoInfo,
     CouldNotSetHead,
     CouldNotExecuteScript,
