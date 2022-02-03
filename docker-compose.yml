@@ -9,6 +9,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        SSH_KEY_PASSWORD: "${SSH_KEY_PASSWORD}"
+        SSH_KEY_PATH: "${SSH_KEY_PATH}"
+        ENV_PROFILE: "${ENV_PROFILE}"
     hostname: ci
     image: ci
     ports:
@@ -16,6 +20,6 @@ services:
     restart: on-failure
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.ssh:~/.ssh
+      - ~/.ssh:/home/appuser/.ssh
     networks:
       - web

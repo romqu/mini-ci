@@ -49,12 +49,15 @@ impl CloneRepoService {
         into_dir_path: &'static str,
         ssh_key_name: &'static str,
         ssh_passphrase: String,
+        ssh_key_path: String,
     ) -> Result<RepoInfoEntity, CloneRepoServiceError> {
         return self
             .find_home_path()
             .map(|home_path| self.extract_repo_name(url, home_path))
             .and_then(|first| self.delete_repo_dir(into_dir_path, first))
-            .and_then(|second| self.clone_repo(url, ssh_key_name, second, ssh_passphrase))
+            .and_then(|second| {
+                self.clone_repo(url, ssh_key_name, second, ssh_passphrase, ssh_key_path)
+            })
             .and_then(|third| self.save_repo_info(url, third));
     }
 
@@ -106,10 +109,10 @@ impl CloneRepoService {
         ssh_key_name: &str,
         second: Second,
         ssh_passphrase: String,
+        ssh_key_path: String,
     ) -> Result<Third, CloneRepoServiceError> {
-        let formatted_ssh_key_path = format!("{0}/.ssh/{1}", second.home_path, ssh_key_name);
         let repo_path = Path::new(second.formatted_repo_path.as_str());
-        let ssh_key_path = Path::new(formatted_ssh_key_path.as_str());
+        let ssh_key_path = Path::new(ssh_key_path.as_str());
         let ssh_passphrase = if !ssh_passphrase.trim().is_empty() {
             Some(ssh_passphrase.as_str())
         } else {

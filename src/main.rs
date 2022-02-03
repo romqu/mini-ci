@@ -8,6 +8,7 @@ use std::env;
 
 use actix_web::web::Json;
 use actix_web::{web, App, HttpResponse, HttpServer};
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -26,24 +27,44 @@ async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let ssh_passphrase = env::args().nth(1).unwrap();
+    let args: Args = Args::parse();
     let repository = RepoInfoRepository::new(HashMap::new());
 
     CloneRepoService::new(repository.clone()).execute(
         DeploySchimmelhofApiDevService::new(repository.clone()).ssh_git_url(),
         "/tmp",
         "mini-ci",
-        ssh_passphrase,
+        args.ssh_passphrase,
+        args.ssh_key_path,
     );
 
     let dto = GithubPushEventDto::default();
-    let dto1 = GithubPushEventDto { ref_field: "refs/heads/mvp".to_string(), ..dto };
-    println!("{}", DeploySchimmelhofApiDevService::new(repository).execute(dto1).unwrap().to_string());
+    let dto1 = GithubPushEventDto {
+        ref_field: "refs/heads/mvp".to_string(),
+        ..dto
+    };
+    println!(
+        "{}",
+        DeploySchimmelhofApiDevService::new(repository)
+            .execute(dto1)
+            .unwrap()
+            .to_string()
+    );
 
     HttpServer::new(|| App::new().service(web::resource("/payload").route(web::post().to(index))))
         .bind("127.0.0.1:4567")?
         .run()
         .await
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(long)]
+    ssh_passphrase: String,
+
+    #[clap(long)]
+    ssh_key_path: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

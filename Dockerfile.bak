@@ -1,36 +1,3 @@
-# syntax=docker/dockerfile:latest
-FROM rust:latest as builder
-
-#RUN USER=root cargo new --bin rust-docker-web
-#WORKDIR ./rust-docker-web
-#COPY ./Cargo.toml ./Cargo.toml
-#RUN cargo build --release
-#RUN rm src/*.rs
-
-#ADD . ./
-
-#RUN rm ./target/release/deps/rust_docker_web*
-#RUN cargo build --release
-
-
-ENV HOME=/home/root
-
-WORKDIR $HOME/app
-
-COPY src src
-COPY Cargo.lock .
-COPY Cargo.toml .
-
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-	--mount=type=cache,target=/home/root/app/target \
-	cargo build --release
-
-# if that's not here, 'mv' below won't work
-RUN --mount=type=cache,target=/home/root/app/target echo $(ls -alh target/release)
-
-RUN --mount=type=cache,target=/home/root/app/target mv target/release/untitled .
-
-
 FROM ubuntu:latest
 ARG APP=/usr/src/app
 
@@ -59,22 +26,32 @@ RUN export release=$(curl --silent "https://api.github.com/repos/docker/compose/
 
 EXPOSE 8081
 
-ARG SSH_KEY_PASSWORD
-ARG SSH_KEY_PATH
-
 ENV APP_USER=appuser
-ENV SSH_KEY_PASSWORD_ENV=$SSH_KEY_PASSWORD
-ENV SSH_KEY_PATH_ENV=$SSH_KEY_PATH
 
 RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
     && mkdir -p ${APP}
 
-COPY --from=builder /home/root/app/untitled ${APP}/untitled
+COPY --from=builder /home/root/app/target/release/untitled ${APP}/untitled
 
 RUN chown -R $APP_USER:$APP_USER ${APP}
 
 USER $APP_USER
 WORKDIR ${APP}
 
-ENTRYPOINT ./untitled --ssh-passphrase $SSH_KEY_PASSWORD_ENV --ssh-key-path $SSH_KEY_PATH_ENV
+ENTRYPOINT ./untitled --ssh-passphrase "1234" --ssh-key-path "sadsads"
+---------------------------------------------------------------------------
+ENV_FILE=.env
+
+rm -f "${ENV_FILE}"
+touch "${ENV_FILE}"
+
+{
+  echo "ENV_PROFILE=$target"
+  echo "SSH_KEY_PATH=$ssh_path"
+  echo "SSH_KEY_PASSWORD=$ssh_password"
+} >>"${ENV_FILE}"
+
+docker-compose up --build --force-recreate --no-deps -d ci
+
+rm .env
