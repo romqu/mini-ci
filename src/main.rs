@@ -30,8 +30,9 @@ async fn main() -> std::io::Result<()> {
     let args: Args = Args::parse();
     let repository = RepoInfoRepository::new(HashMap::new());
 
+    let service = DeploySchimmelhofApiDevService::new(repository.clone());
     CloneRepoService::new(repository.clone()).execute(
-        DeploySchimmelhofApiDevService::new(repository.clone()).ssh_git_url(),
+        service.ssh_git_url(),
         "/tmp",
         "mini-ci",
         args.ssh_passphrase,
@@ -45,7 +46,7 @@ async fn main() -> std::io::Result<()> {
     };
     println!(
         "{}",
-        DeploySchimmelhofApiDevService::new(repository)
+        service
             .execute(dto1)
             .unwrap()
             .to_string()
