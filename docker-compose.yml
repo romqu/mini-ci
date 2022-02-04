@@ -16,10 +16,10 @@ services:
     hostname: ci
     image: ci
     ports:
-      - "8081:8081"
+      - "4567:4567"
     restart: on-failure
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.ssh:/home/appuser/.ssh
+      - ${SSH_KEY_PATH}:/home/appuser/.ssh/ci
     networks:
       - web

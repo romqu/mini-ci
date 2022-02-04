@@ -57,14 +57,14 @@ RUN export release=$(curl --silent "https://api.github.com/repos/docker/compose/
     curl -L "https://github.com/docker/compose/releases/download/$release/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
     && chmod +x /usr/local/bin/docker-compose
 
-EXPOSE 8081
+EXPOSE 4567
 
 ARG SSH_KEY_PASSWORD
-ARG SSH_KEY_PATH
+ARG SSH_KEY_PATH_INTERNAL
 
 ENV APP_USER=appuser
 ENV SSH_KEY_PASSWORD_ENV=$SSH_KEY_PASSWORD
-ENV SSH_KEY_PATH_ENV=$SSH_KEY_PATH
+ENV SSH_KEY_PATH_ENV=$SSH_KEY_PATH_INTERNAL
 
 RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
@@ -77,4 +77,4 @@ RUN chown -R $APP_USER:$APP_USER ${APP}
 USER $APP_USER
 WORKDIR ${APP}
 
-ENTRYPOINT ./untitled --ssh-passphrase $SSH_KEY_PASSWORD_ENV --ssh-key-path $SSH_KEY_PATH_ENV
+ENTRYPOINT ./untitled --ssh-passphrase $SSH_KEY_PASSWORD_ENV --ssh-key-path "/home/$APP_USER/.ssh/ci"
