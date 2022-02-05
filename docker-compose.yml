@@ -16,7 +16,7 @@ services:
     hostname: ci
     image: ci
     ports:
-      - "4567:4567"
+      - "8083:8083"
     restart: on-failure
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

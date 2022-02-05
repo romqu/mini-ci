@@ -44,16 +44,11 @@ async fn main() -> std::io::Result<()> {
         ref_field: "refs/heads/mvp".to_string(),
         ..dto
     };
-    println!(
-        "{}",
-        service
-            .execute(dto1)
-            .unwrap()
-            .to_string()
-    );
+    println!("{}", service.execute(dto1).unwrap().to_string());
+
 
     HttpServer::new(|| App::new().service(web::resource("/payload").route(web::post().to(index))))
-        .bind("127.0.0.1:4567")?
+        .bind("0.0.0.0:8083")?
         .run()
         .await
 }
