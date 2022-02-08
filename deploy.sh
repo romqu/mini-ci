@@ -1,4 +1,5 @@
 #!/bin/bash
+# DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain ./deploy.sh -t dev -a "/home/roman/.ssh/mini-ci" -p "a"
 set -o errexit -o pipefail -o noclobber -o nounset
 
 while getopts ":t:p:a:" flag; do
@@ -26,6 +27,6 @@ touch "${ENV_FILE}"
   echo "SSH_KEY_PASSWORD=$ssh_password"
 } >>"${ENV_FILE}"
 
-docker-compose up --build --force-recreate --no-deps -d ci
+DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker-compose up --build --force-recreate --no-deps -d ci
 
 rm .env

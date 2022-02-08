@@ -46,11 +46,12 @@ async fn main() -> std::io::Result<()> {
     };
     println!("{}", service.execute(dto1).unwrap().to_string());
 
-
-    HttpServer::new(|| App::new().service(web::resource("/payload").route(web::post().to(index))))
-        .bind("0.0.0.0:8083")?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new().service(web::resource("/api/v1/github").route(web::post().to(index)))
+    })
+    .bind("0.0.0.0:8083")?
+    .run()
+    .await
 }
 
 #[derive(Parser, Debug)]
