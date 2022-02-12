@@ -80,7 +80,11 @@ impl DeploySchimmelhofApiDevService {
         run_cmd!(
             /bin/bash ${path}/deploy.sh -t dev;
         )
-        .map_err(|_| CouldNotExecuteScript)
+        .map_err(|err| {
+            println!("error: {}", err);
+
+            CouldNotExecuteScript
+        })
     }
 }
 

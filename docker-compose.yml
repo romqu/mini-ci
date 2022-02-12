@@ -13,6 +13,7 @@ services:
         SSH_KEY_PASSWORD: "${SSH_KEY_PASSWORD}"
         SSH_KEY_PATH: "${SSH_KEY_PATH}"
         ENV_PROFILE: "${ENV_PROFILE}"
+        DOCKER_GROUP_ID: "${DOCKER_GROUP_ID}"
     hostname: ci
     image: ci
     ports:

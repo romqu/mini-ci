@@ -31,7 +31,9 @@ async fn main() -> std::io::Result<()> {
     let repository = RepoInfoRepository::new(HashMap::new());
 
     let service = DeploySchimmelhofApiDevService::new(repository.clone());
-    CloneRepoService::new(repository.clone()).execute(
+
+    CloneRepoService::new(repository.clone())
+        .execute(
         service.ssh_git_url(),
         "/tmp",
         "mini-ci",
@@ -44,7 +46,7 @@ async fn main() -> std::io::Result<()> {
         ref_field: "refs/heads/mvp".to_string(),
         ..dto
     };
-    println!("{}", service.execute(dto1).unwrap().to_string());
+    // println!("{}", service.execute(dto1).unwrap().to_string());
 
     HttpServer::new(|| {
         App::new().service(web::resource("/api/v1/github").route(web::post().to(index)))

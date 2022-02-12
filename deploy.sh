@@ -25,8 +25,10 @@ touch "${ENV_FILE}"
   echo "ENV_PROFILE=$target"
   echo "SSH_KEY_PATH=$ssh_path"
   echo "SSH_KEY_PASSWORD=$ssh_password"
+  echo "DOCKER_GROUP_ID=$(getent group docker | cut -d: -f3)"
 } >>"${ENV_FILE}"
 
-DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker-compose up --build --force-recreate --no-deps -d ci
+DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker-compose up \
+  --build --force-recreate --no-deps -d ci
 
 rm .env

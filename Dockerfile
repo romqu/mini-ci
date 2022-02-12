@@ -1,18 +1,6 @@
 # syntax=docker/dockerfile:latest
 FROM rust:latest as builder
 
-#RUN USER=root cargo new --bin rust-docker-web
-#WORKDIR ./rust-docker-web
-#COPY ./Cargo.toml ./Cargo.toml
-#RUN cargo build --release
-#RUN rm src/*.rs
-
-#ADD . ./
-
-#RUN rm ./target/release/deps/rust_docker_web*
-#RUN cargo build --release
-
-
 ENV HOME=/home/root
 
 WORKDIR $HOME/app
@@ -35,7 +23,7 @@ FROM ubuntu:latest
 ARG APP=/usr/src/app
 
 RUN apt-get update \
-    && apt-get install -y curl gpg lsb-release
+    && apt-get install -y curl gpg lsb-release sudo
 
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 RUN echo \
@@ -61,14 +49,18 @@ EXPOSE 4567
 
 ARG SSH_KEY_PASSWORD
 ARG SSH_KEY_PATH_INTERNAL
+ARG DOCKER_GROUP_ID
 
 ENV APP_USER=appuser
 ENV SSH_KEY_PASSWORD_ENV=$SSH_KEY_PASSWORD
 ENV SSH_KEY_PATH_ENV=$SSH_KEY_PATH_INTERNAL
 
+
 RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
     && mkdir -p ${APP}
+
+RUN groupmod -g $DOCKER_GROUP_ID docker && gpasswd -a $APP_USER docker
 
 COPY --from=builder /home/root/app/untitled ${APP}/untitled
 
