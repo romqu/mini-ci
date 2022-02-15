@@ -19,8 +19,8 @@ pub struct RepoInfoRepository {
 }
 
 impl RepoInfoRepository {
-    pub fn new(db: HashMap<String, RepoInfoEntity>) -> Rc<RefCell<RepoInfoRepository>> {
-        Rc::new(RefCell::new(RepoInfoRepository { db }))
+    pub fn new(db: HashMap<String, RepoInfoEntity>) -> RepoInfoRepository {
+        RepoInfoRepository { db }
     }
 
     pub fn save(&mut self, key: String, entity: RepoInfoEntity) -> Option<RepoInfoEntity> {

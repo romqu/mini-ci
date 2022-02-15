@@ -1,9 +1,15 @@
 use std::cell::RefCell;
+use std::env::join_paths;
+use std::io::{BufRead, BufReader};
 use std::rc::Rc;
+use std::thread;
+use std::thread::JoinHandle;
 
-use cmd_lib::run_cmd;
-use git2::{Branch, BranchType, ObjectType};
+use cmd_lib::*;
+use futures::task::SpawnExt;
+use futures::TryFutureExt;
 use git2::build::CheckoutBuilder;
+use git2::{Branch, BranchType, ObjectType};
 
 use crate::{GithubPushEventDto, RepoInfoRepository};
 use crate::data::repo_info_repository::RepoInfoEntity;
@@ -66,25 +72,41 @@ impl DeployService<String, DeploySchimmelhofApiDevServiceError> for DeploySchimm
                     .map_err(|_| CouldNotSetHead)
                     .map(|_| repo_info)
             })
-            .and_then(|repo_info| self.execute_deploy_script(repo_info))
+            .map(|repo_info| self.execute_deploy_script(repo_info))
             .map(|_| "".to_string());
     }
 }
 
 impl DeploySchimmelhofApiDevService {
-    fn execute_deploy_script(
-        &self,
-        repo_info: &RepoInfoEntity,
-    ) -> Result<(), DeploySchimmelhofApiDevServiceError> {
+    fn execute_deploy_script(&self, repo_info: &RepoInfoEntity) -> JoinHandle<()> {
         let path = &repo_info.path;
-        run_cmd!(
+        let path_copy = path.clone();
+
+        // cd path_copy | bash -c /usr/bin/docker-compose build --build-arg ENVPROFILE=dev | bash -c /usr/bin/docker-compose up --force-recreate --no-deps -d api
+
+        thread::spawn(move || {
+            let command = format!("${}/docker-compose.yml", path_copy);
+            println!("{}", command);
+
+            spawn_with_output!(
+                docker-compose -f ${command} build
+            ).unwrap()
+                .wait_with_pipe(&mut |pipe| {
+                    BufReader::new(pipe)
+                        .lines()
+                        .filter_map(|line| line.ok())
+                        .for_each(|line| println!("{}", line));
+                });
+        })
+
+        /*run_cmd!(
             /bin/bash ${path}/deploy.sh -t dev;
         )
         .map_err(|err| {
             println!("error: {}", err);
 
             CouldNotExecuteScript
-        })
+        })*/
     }
 }
 

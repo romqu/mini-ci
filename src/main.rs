@@ -3,12 +3,19 @@ extern crate lazy_static;
 extern crate regex;
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::env;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use std::{env, thread};
+use std::any::Any;
+use std::hash::Hash;
 
 use actix_web::web::Json;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use clap::Parser;
+use cmd_lib::{run_cmd, spawn_with_output};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -27,13 +34,14 @@ async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    cmd_lib::set_pipefail(false);
     let args: Args = Args::parse();
     let repository = RepoInfoRepository::new(HashMap::new());
+    let repository_shared = Rc::new(RefCell::new(repository));
+    let service = DeploySchimmelhofApiDevService::new(repository_shared.clone());
+    let clone_repo_service = CloneRepoService::new(repository_shared.clone());
 
-    let service = DeploySchimmelhofApiDevService::new(repository.clone());
-
-    CloneRepoService::new(repository.clone())
-        .execute(
+    clone_repo_service.execute(
         service.ssh_git_url(),
         "/tmp",
         "mini-ci",
@@ -46,7 +54,7 @@ async fn main() -> std::io::Result<()> {
         ref_field: "refs/heads/mvp".to_string(),
         ..dto
     };
-    // println!("{}", service.execute(dto1).unwrap().to_string());
+    println!("{}", service.execute(dto1).unwrap().to_string());
 
     HttpServer::new(|| {
         App::new().service(web::resource("/api/v1/github").route(web::post().to(index)))
