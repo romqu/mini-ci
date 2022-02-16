@@ -1,18 +1,17 @@
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader};
-use std::ops::Deref;
 use std::rc::Rc;
 use std::thread;
 use std::thread::JoinHandle;
 
 use cmd_lib::*;
-use futures::task::SpawnExt;
 use git2::{Branch, BranchType, ObjectType};
+use git2::build::CheckoutBuilder;
 
 use crate::{GithubPushEventDto, GitRepoInfoRepository};
 use crate::data::repo_info_repository::GitRepoInfoEntity;
 use crate::deploy::deploy_service::DeployService;
-use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevServiceError::{CouldNotCheckoutBranch, CouldNotExecuteScript, CouldNotGetBranch, CouldNotGetRepoInfo};
+use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
 
 pub struct DeploySchimmelhofApiDevService {
     git_repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,
@@ -130,5 +129,4 @@ pub enum DeploySchimmelhofApiDevServiceError {
     CouldNotGetBranch,
     CouldNotGetRepoInfo,
     CouldNotCheckoutBranch,
-    CouldNotExecuteScript,
 }
