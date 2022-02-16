@@ -35,7 +35,7 @@ impl DeployService<String, DeploySchimmelhofApiDevServiceError> for DeploySchimm
     fn execute(
         &self,
         dto: GithubPushEventDto,
-    ) -> Result<String, DeploySchimmelhofApiDevServiceError> {
+    ) -> Result<JoinHandle<()>, DeploySchimmelhofApiDevServiceError> {
         return self
             .git_repo_info_repo
             .borrow()
@@ -43,8 +43,7 @@ impl DeployService<String, DeploySchimmelhofApiDevServiceError> for DeploySchimm
             .ok_or(CouldNotGetRepoInfo)
             .and_then(|git_repo_info| Self::get_branch(dto, git_repo_info))
             .and_then(|temp_data_holder| Self::checkout_branch(temp_data_holder))
-            .map(|repo_info| Self::execute_deploy_commands(repo_info))
-            .map(|_| "".to_string());
+            .map(|repo_info| Self::execute_deploy_commands(repo_info));
     }
 }
 
