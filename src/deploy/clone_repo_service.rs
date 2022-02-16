@@ -1,13 +1,13 @@
+use std::{env, fs};
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
-use std::{env, fs};
 
-use git2::build::RepoBuilder;
 use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
+use git2::build::RepoBuilder;
 use regex::Regex;
 
-use crate::data::repo_info_repository::{RepoInfoEntity, RepoInfoRepository};
+use crate::data::repo_info_repository::{GitRepoInfoEntity, GitRepoInfoRepository};
 use crate::deploy::clone_repo_service::CloneRepoServiceError::{
     CouldNotCloneRepo, CouldNotDeleteExistingRepoDir, CouldNotFindHomePath, CouldNotSaveRepoInfo,
 };
@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 pub struct CloneRepoService {
-    repo_info_repo: Rc<RefCell<RepoInfoRepository>>,
+    repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,
 }
 
 struct First {
@@ -39,7 +39,7 @@ struct Third {
 }
 
 impl CloneRepoService {
-    pub fn new(repo_info_repo: Rc<RefCell<RepoInfoRepository>>) -> CloneRepoService {
+    pub fn new(repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>) -> CloneRepoService {
         return CloneRepoService { repo_info_repo };
     }
 
@@ -50,7 +50,7 @@ impl CloneRepoService {
         ssh_key_name: &'static str,
         ssh_passphrase: String,
         ssh_key_path: String,
-    ) -> Result<RepoInfoEntity, CloneRepoServiceError> {
+    ) -> Result<GitRepoInfoEntity, CloneRepoServiceError> {
         return self
             .find_home_path()
             .map(|home_path| self.extract_repo_name(url, home_path))
@@ -150,12 +150,12 @@ impl CloneRepoService {
         self,
         url: &str,
         third: Third,
-    ) -> Result<RepoInfoEntity, CloneRepoServiceError> {
+    ) -> Result<GitRepoInfoEntity, CloneRepoServiceError> {
         self.repo_info_repo
             .borrow_mut()
             .save(
                 String::from(url),
-                RepoInfoEntity::new(third.formatted_repo_path, third.repository),
+                GitRepoInfoEntity::new(third.formatted_repo_path, third.repository),
             )
             .ok_or(CouldNotSaveRepoInfo)
     }

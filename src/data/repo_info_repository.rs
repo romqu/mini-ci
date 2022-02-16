@@ -1,33 +1,34 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+
 use git2::Repository;
 
-pub struct RepoInfoEntity {
+pub struct GitRepoInfoEntity {
     pub path: String,
-    pub repository: Repository
+    pub git_repository: Repository,
 }
 
-impl RepoInfoEntity {
-    pub fn new(path: String, repository: Repository) -> RepoInfoEntity {
-        RepoInfoEntity { path, repository }
+impl GitRepoInfoEntity {
+    pub fn new(path: String, git_repository: Repository) -> GitRepoInfoEntity {
+        GitRepoInfoEntity { path, git_repository }
     }
 }
 
-pub struct RepoInfoRepository {
-    db: HashMap<String, RepoInfoEntity>,
+pub struct GitRepoInfoRepository {
+    db: HashMap<String, GitRepoInfoEntity>,
 }
 
-impl RepoInfoRepository {
-    pub fn new(db: HashMap<String, RepoInfoEntity>) -> RepoInfoRepository {
-        RepoInfoRepository { db }
+impl GitRepoInfoRepository {
+    pub fn new(db: HashMap<String, GitRepoInfoEntity>) -> GitRepoInfoRepository {
+        GitRepoInfoRepository { db }
     }
 
-    pub fn save(&mut self, key: String, entity: RepoInfoEntity) -> Option<RepoInfoEntity> {
+    pub fn save(&mut self, key: String, entity: GitRepoInfoEntity) -> Option<GitRepoInfoEntity> {
         self.db.insert(key, entity)
     }
 
-    pub fn get(&self, key: &'static str) -> Option<&RepoInfoEntity> {
+    pub fn get(&self, key: &'static str) -> Option<&GitRepoInfoEntity> {
         self.db.get(key)
     }
 }
