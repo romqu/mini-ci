@@ -7,7 +7,7 @@ use std::thread::JoinHandle;
 
 use cmd_lib::*;
 use futures::task::SpawnExt;
-use futures::TryFutureExt;
+use futures::{StreamExt, TryFutureExt};
 use git2::build::CheckoutBuilder;
 use git2::{Branch, BranchType, ObjectType};
 
@@ -82,31 +82,23 @@ impl DeploySchimmelhofApiDevService {
         let path = &repo_info.path;
         let path_copy = path.clone();
 
-        // cd path_copy | bash -c /usr/bin/docker-compose build --build-arg ENVPROFILE=dev | bash -c /usr/bin/docker-compose up --force-recreate --no-deps -d api
-
         thread::spawn(move || {
-            let command = format!("${}/docker-compose.yml", path_copy);
-            println!("{}", command);
 
-            spawn_with_output!(
-                docker-compose -f ${command} build
-            ).unwrap()
-                .wait_with_pipe(&mut |pipe| {
-                    BufReader::new(pipe)
-                        .lines()
-                        .filter_map(|line| line.ok())
-                        .for_each(|line| println!("{}", line));
-                });
+            let commands = vec![
+                spawn_with_output!(docker-compose -f ${path_copy}/docker-compose.yml build --build-arg ENVPROFILE=dev),
+                spawn_with_output!(docker-compose -f ${path_copy}/docker-compose.yml up --force-recreate --no-deps -d api),
+            ];
+
+            for command in commands {
+                command.unwrap()
+                    .wait_with_pipe(&mut |pipe| {
+                        BufReader::new(pipe)
+                            .lines()
+                            .filter_map(|line| line.ok())
+                            .for_each(|line| println!("{}", line));
+                    });
+            }
         })
-
-        /*run_cmd!(
-            /bin/bash ${path}/deploy.sh -t dev;
-        )
-        .map_err(|err| {
-            println!("error: {}", err);
-
-            CouldNotExecuteScript
-        })*/
     }
 }
 
