@@ -15,14 +15,13 @@ use std::time::Duration;
 use actix_web::{App, HttpResponse, HttpServer, web};
 use actix_web::web::Json;
 use clap::Parser;
-use cmd_lib::{run_cmd, spawn_with_output};
+use cmd_lib::{FunChildren, run_cmd, spawn_with_output};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::data::repo_info_repository::GitRepoInfoRepository;
 use crate::deploy::clone_repo_service::CloneRepoService;
 use crate::deploy::deploy_service::DeployService;
-use crate::deploy::schimmelhof::deploy_schimmelhof_api_dev_service::DeploySchimmelhofApiDevService;
 
 mod data;
 mod deploy;
@@ -35,33 +34,48 @@ async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     cmd_lib::set_pipefail(false);
+
     let args: Args = Args::parse();
     let repository = GitRepoInfoRepository::new(HashMap::new());
     let repository_shared = Rc::new(RefCell::new(repository));
-    let service = DeploySchimmelhofApiDevService::new(repository_shared.clone());
+    let deploy_service = DeployService::new(repository_shared.clone());
     let clone_repo_service = CloneRepoService::new(repository_shared.clone());
 
-    clone_repo_service.execute(
-        service.ssh_git_url(),
-        "/tmp",
-        "mini-ci",
-        args.ssh_passphrase,
-        args.ssh_key_path,
-    );
+    let deploy_infos = vec![DeployInfo {
+        ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
+        command_builders: vec![
+            |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml build --build-arg ENVPROFILE=dev),
+            |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml up --force-recreate --no-deps -d api),
+        ],
+    }];
+
+    for deploy_info in deploy_infos {
+        clone_repo_service.execute(
+            deploy_info.ssh_git_url,
+            "/tmp",
+            "mini-ci",
+            &args.ssh_passphrase,
+            &args.ssh_key_path,
+        );
+    }
 
     let dto = GithubPushEventDto::default();
     let dto1 = GithubPushEventDto {
         ref_field: "refs/heads/mvp".to_string(),
         ..dto
     };
-    println!("{}", service.execute(dto1).unwrap().to_string());
 
     HttpServer::new(|| {
         App::new().service(web::resource("/api/v1/github").route(web::post().to(index)))
     })
-    .bind("0.0.0.0:8083")?
-    .run()
-    .await
+        .bind("0.0.0.0:8083")?
+        .run()
+        .await
+}
+
+pub struct DeployInfo {
+    ssh_git_url: &'static str,
+    command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
 }
 
 #[derive(Parser, Debug)]

@@ -22,18 +22,18 @@ pub struct CloneRepoService {
     repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,
 }
 
-struct First {
+struct TempDataHolderOne {
     home_path: String,
     repo_name: String,
 }
 
-struct Second {
+struct TempDataHolderSecond {
     home_path: String,
     repo_name: String,
     formatted_repo_path: String,
 }
 
-struct Third {
+struct TempDataHolderThird {
     formatted_repo_path: String,
     repository: Repository,
 }
@@ -44,12 +44,12 @@ impl CloneRepoService {
     }
 
     pub fn execute(
-        self,
+        &self,
         url: &'static str,
         into_dir_path: &'static str,
         ssh_key_name: &'static str,
-        ssh_passphrase: String,
-        ssh_key_path: String,
+        ssh_passphrase: &String,
+        ssh_key_path: &String,
     ) -> Result<GitRepoInfoEntity, CloneRepoServiceError> {
         return self
             .find_home_path()
@@ -65,7 +65,7 @@ impl CloneRepoService {
         env::var(HOME_VAR).map_err(|_| CouldNotFindHomePath)
     }
 
-    fn extract_repo_name(&self, url: &str, home_path: String) -> First {
+    fn extract_repo_name(&self, url: &str, home_path: String) -> TempDataHolderOne {
         let repo_name = REPO_NAME_REGEX
             .captures(url)
             .unwrap()
@@ -74,7 +74,7 @@ impl CloneRepoService {
             .to_string()
             .replace(".", "");
 
-        First {
+        TempDataHolderOne {
             home_path,
             repo_name,
         }
@@ -83,12 +83,12 @@ impl CloneRepoService {
     fn delete_repo_dir(
         &self,
         into_dir_path: &'static str,
-        first: First,
-    ) -> Result<Second, CloneRepoServiceError> {
+        first: TempDataHolderOne,
+    ) -> Result<TempDataHolderSecond, CloneRepoServiceError> {
         let repo_name = first.repo_name;
         let formatted_repo_path = format!("{0}/{1}", into_dir_path, repo_name);
         let repo_path = Path::new(formatted_repo_path.as_str()).to_owned();
-        let second = Second {
+        let second = TempDataHolderSecond {
             home_path: first.home_path,
             repo_name,
             formatted_repo_path,
@@ -107,10 +107,10 @@ impl CloneRepoService {
         &self,
         url: &str,
         ssh_key_name: &str,
-        second: Second,
-        ssh_passphrase: String,
-        ssh_key_path: String,
-    ) -> Result<Third, CloneRepoServiceError> {
+        second: TempDataHolderSecond,
+        ssh_passphrase: &String,
+        ssh_key_path: &String,
+    ) -> Result<TempDataHolderThird, CloneRepoServiceError> {
         let repo_path = Path::new(second.formatted_repo_path.as_str());
         let ssh_key_path = Path::new(ssh_key_path.as_str());
         let ssh_passphrase = if !ssh_passphrase.trim().is_empty() {
@@ -139,7 +139,7 @@ impl CloneRepoService {
             .clone(url, repo_path)
             .map_err(|_| CouldNotCloneRepo)
             .map(|repo| {
-                Third {
+                TempDataHolderThird {
                     formatted_repo_path: second.formatted_repo_path,
                     repository: repo,
                 }
@@ -147,9 +147,9 @@ impl CloneRepoService {
     }
 
     fn save_repo_info(
-        self,
+        &self,
         url: &str,
-        third: Third,
+        third: TempDataHolderThird,
     ) -> Result<GitRepoInfoEntity, CloneRepoServiceError> {
         self.repo_info_repo
             .borrow_mut()
