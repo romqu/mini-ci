@@ -15,7 +15,7 @@ impl GitRepoInfoEntity {
     }
 }
 
-pub struct GitRepoInfoRepository {
+pub struct GitRepoInfoRepository<> {
     db: HashMap<String, GitRepoInfoEntity>,
 }
 

@@ -11,7 +11,7 @@ use git2::build::CheckoutBuilder;
 
 use crate::{DeployInfo, GithubPushEventDto, GitRepoInfoRepository};
 use crate::data::repo_info_repository::GitRepoInfoEntity;
-use crate::deploy::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
+use crate::domain::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
 
 pub struct DeployService {
     git_repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,

@@ -19,12 +19,14 @@ use cmd_lib::{FunChildren, run_cmd, spawn_with_output};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::repo_info_repository::GitRepoInfoRepository;
-use crate::deploy::clone_repo_service::CloneRepoService;
-use crate::deploy::deploy_service::DeployService;
+use crate::domain::clone_repo_task::CloneRepoTask;
+use crate::domain::deploy_service::DeployService;
+use crate::domain::init_service::InitService;
 
 mod data;
-mod deploy;
+mod domain;
 
 async fn index(item: Json<GithubPushEventDto>) -> HttpResponse {
     println!("model: {:?}", &item);
@@ -36,10 +38,12 @@ async fn main() -> std::io::Result<()> {
     cmd_lib::set_pipefail(false);
 
     let args: Args = Args::parse();
-    let repository = GitRepoInfoRepository::new(HashMap::new());
-    let repository_shared = Rc::new(RefCell::new(repository));
-    let deploy_service = DeployService::new(repository_shared.clone());
-    let clone_repo_service = CloneRepoService::new(repository_shared.clone());
+    let git_repo_info_repo = Rc::new(RefCell::new(GitRepoInfoRepository::new(HashMap::new())));
+    let clone_repo_task = CloneRepoTask::new(git_repo_info_repo.clone());
+    let mut init_service = InitService::new(DeployInfoRepository::new(HashMap::new()), clone_repo_task);
+    let deploy_service = DeployService::new(git_repo_info_repo.clone());
+
+    init_service.execute();
 
     let deploy_infos = vec![DeployInfo {
         ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
@@ -50,10 +54,9 @@ async fn main() -> std::io::Result<()> {
     }];
 
     for deploy_info in deploy_infos {
-        clone_repo_service.execute(
+        clone_repo_task.execute(
             deploy_info.ssh_git_url,
             "/tmp",
-            "mini-ci",
             &args.ssh_passphrase,
             &args.ssh_key_path,
         );
