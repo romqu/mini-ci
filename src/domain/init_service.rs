@@ -1,3 +1,5 @@
+use cmd_lib::FunChildren;
+
 use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 
@@ -21,17 +23,21 @@ impl InitService {
     }
 
     pub fn execute(&mut self) {
-        self.save_deploy_infos()
+        let deploy_infos = Self::get_deploy_infos();
     }
 
-    pub fn clone_repos() {
-        let deploy_infos = vec![DeployInfoEntity {
+    fn get_deploy_infos() -> Vec<DeployInfo> {
+        vec![DeployInfo {
             ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
             command_builders: vec![
                 |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml build --build-arg ENVPROFILE=dev),
                 |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml up --force-recreate --no-deps -d api),
             ],
-        }];
+        }]
+    }
+
+    pub fn clone_repos(&self, deploy_infos: Vec<DeployInfo>) {
+        let args = &self.args;
 
         for deploy_info in deploy_infos {
             clone_repo_task.execute(
@@ -57,4 +63,9 @@ impl InitService {
                 .save(deploy_info.ssh_git_url.to_string(), deploy_info);
         }
     }
+}
+
+pub struct DeployInfo {
+    pub ssh_git_url: &'static str,
+    pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
 }

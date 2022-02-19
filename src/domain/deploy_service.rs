@@ -10,6 +10,7 @@ use git2::{Branch, BranchType, ObjectType};
 use git2::build::CheckoutBuilder;
 
 use crate::{DeployInfo, GithubPushEventDto, GitRepoInfoRepository};
+use crate::data::deploy_info_repository::DeployInfoEntity;
 use crate::data::repo_info_repository::GitRepoInfoEntity;
 use crate::domain::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
 
@@ -29,7 +30,7 @@ impl DeployService {
     pub fn execute(
         &self,
         dto: GithubPushEventDto,
-        deploy_info: DeployInfo,
+        deploy_info: DeployInfoEntity,
     ) -> Result<JoinHandle<()>, DeployServiceError> {
         return self
             .git_repo_info_repo
