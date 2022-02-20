@@ -41,7 +41,6 @@ impl CloneRepoTask {
             .extract_repo_name(url)
             .and_then(|first| self.delete_repo_dir(into_dir_path, first))
             .and_then(|second| self.clone_repo(url, second, ssh_passphrase, ssh_key_path))
-            .and_then(|third| self.save_repo_info(url, third));
     }
 
     fn extract_repo_name(&self, url: &str) -> Result<TempDataHolderOne, CloneRepoServiceError> {

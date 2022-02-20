@@ -39,28 +39,15 @@ async fn main() -> std::io::Result<()> {
 
     let args: Args = Args::parse();
     let git_repo_info_repo = Rc::new(RefCell::new(GitRepoInfoRepository::new(HashMap::new())));
-    let clone_repo_task = CloneRepoTask::new(git_repo_info_repo.clone());
-    let mut init_service = InitService::new(DeployInfoRepository::new(HashMap::new()), clone_repo_task);
+    let clone_repo_task = CloneRepoTask::new();
+    let mut init_service = InitService::new(
+        DeployInfoRepository::new(HashMap::new()),
+        clone_repo_task,
+        args,
+    );
     let deploy_service = DeployService::new(git_repo_info_repo.clone());
 
     init_service.execute();
-
-    let deploy_infos = vec![DeployInfo {
-        ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
-        command_builders: vec![
-            |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml build --build-arg ENVPROFILE=dev),
-            |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml up --force-recreate --no-deps -d api),
-        ],
-    }];
-
-    for deploy_info in deploy_infos {
-        clone_repo_task.execute(
-            deploy_info.ssh_git_url,
-            "/tmp",
-            &args.ssh_passphrase,
-            &args.ssh_key_path,
-        );
-    }
 
     let dto = GithubPushEventDto::default();
     let dto1 = GithubPushEventDto {
@@ -83,7 +70,7 @@ pub struct DeployInfo {
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
-struct Args {
+pub struct Args {
     #[clap(long)]
     ssh_passphrase: String,
 
