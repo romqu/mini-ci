@@ -39,13 +39,14 @@ impl InitService {
     pub fn clone_repos(&self, deploy_infos: Vec<DeployInfo>) {
         let args = &self.args;
 
-        deploy_infos.iter().map(|deploy_info|
-            self.clone_repo_task.execute(
-                deploy_info.ssh_git_url,
-                "/tmp",
-                &args.ssh_passphrase,
-                &args.ssh_key_path,
-            ));
+        let a = deploy_infos.iter();
+
+        self.clone_repo_task.execute(
+            deploy_info.ssh_git_url,
+            "/tmp",
+            &args.ssh_passphrase,
+            &args.ssh_key_path,
+        );
     }
 }
 
