@@ -21,8 +21,8 @@ lazy_static! {
 pub struct CloneRepoTask {}
 
 pub struct CloneRepoTaskResult {
-    formatted_repo_path: String,
-    repository: Repository,
+    pub repo_path: String,
+    pub repository: Repository,
 }
 
 impl CloneRepoTask {
@@ -40,7 +40,7 @@ impl CloneRepoTask {
         return self
             .extract_repo_name(url)
             .and_then(|first| self.delete_repo_dir(into_dir_path, first))
-            .and_then(|second| self.clone_repo(url, second, ssh_passphrase, ssh_key_path))
+            .and_then(|second| self.clone_repo(url, second, ssh_passphrase, ssh_key_path));
     }
 
     fn extract_repo_name(&self, url: &str) -> Result<TempDataHolderOne, CloneRepoServiceError> {
@@ -115,7 +115,7 @@ impl CloneRepoTask {
             .map_err(|_| CouldNotCloneRepo)
             .map(|repo| {
                 CloneRepoTaskResult {
-                    formatted_repo_path: second.formatted_repo_path,
+                    repo_path: second.formatted_repo_path,
                     repository: repo,
                 }
             })
