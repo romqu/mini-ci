@@ -7,7 +7,7 @@ use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
 use git2::build::RepoBuilder;
 use regex::Regex;
 
-use crate::domain::clone_repo_task::CloneRepoServiceError::{
+use crate::domain::clone_repo_task::CloneRepoTaskError::{
     CouldNotCloneRepo, CouldNotDeleteExistingRepoDir, CouldNotExtractRepoName,
     CouldNotFindHomePath, CouldNotSaveRepoInfo,
 };
@@ -36,14 +36,14 @@ impl CloneRepoTask {
         into_dir_path: &'static str,
         ssh_passphrase: &String,
         ssh_key_path: &String,
-    ) -> Result<CloneRepoTaskResult, CloneRepoServiceError> {
+    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         return self
             .extract_repo_name(url)
-            .and_then(|first| self.delete_repo_dir(into_dir_path, first))
-            .and_then(|second| self.clone_repo(url, second, ssh_passphrase, ssh_key_path));
+            .and_then(|data_holder_one| self.delete_repo_dir(into_dir_path, data_holder_one))
+            .and_then(|data_holder_two| self.clone_repo(url, data_holder_two, ssh_passphrase, ssh_key_path));
     }
 
-    fn extract_repo_name(&self, url: &str) -> Result<TempDataHolderOne, CloneRepoServiceError> {
+    fn extract_repo_name(&self, url: &str) -> Result<TempDataHolderOne, CloneRepoTaskError> {
         REPO_NAME_REGEX
             .captures(url)
             .ok_or(CouldNotExtractRepoName)
@@ -61,11 +61,11 @@ impl CloneRepoTask {
         &self,
         into_dir_path: &'static str,
         first: TempDataHolderOne,
-    ) -> Result<TempDataHolderSecond, CloneRepoServiceError> {
+    ) -> Result<TempDataHolderTwo, CloneRepoTaskError> {
         let repo_name = first.repo_name;
         let formatted_repo_path = format!("{0}/{1}", into_dir_path, repo_name);
         let repo_path = Path::new(formatted_repo_path.as_str()).to_owned();
-        let second = TempDataHolderSecond {
+        let second = TempDataHolderTwo {
             repo_name,
             formatted_repo_path,
         };
@@ -82,10 +82,10 @@ impl CloneRepoTask {
     fn clone_repo(
         &self,
         url: &str,
-        second: TempDataHolderSecond,
+        second: TempDataHolderTwo,
         ssh_passphrase: &String,
         ssh_key_path: &String,
-    ) -> Result<CloneRepoTaskResult, CloneRepoServiceError> {
+    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         let repo_path = Path::new(second.formatted_repo_path.as_str());
         let ssh_key_path = Path::new(ssh_key_path.as_str());
         let ssh_passphrase = if !ssh_passphrase.trim().is_empty() {
@@ -126,13 +126,13 @@ struct TempDataHolderOne {
     repo_name: String,
 }
 
-struct TempDataHolderSecond {
+struct TempDataHolderTwo {
     repo_name: String,
     formatted_repo_path: String,
 }
 
-#[derive(Debug)]
-pub enum CloneRepoServiceError {
+#[derive(Debug, Clone)]
+pub enum CloneRepoTaskError {
     CouldNotExtractRepoName,
     CouldNotFindHomePath,
     CouldNotDeleteExistingRepoDir,

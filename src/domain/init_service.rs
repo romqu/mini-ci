@@ -4,8 +4,8 @@ use git2::Repository;
 
 use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
-use crate::domain::clone_repo_task::{CloneRepoServiceError, CloneRepoTaskResult};
-use crate::domain::clone_repo_task::CloneRepoServiceError::CouldNotCloneRepo;
+use crate::domain::clone_repo_task::{CloneRepoTaskError, CloneRepoTaskResult};
+use crate::domain::clone_repo_task::CloneRepoTaskError::CouldNotCloneRepo;
 
 pub struct InitService {
     pub deploy_info_repo: DeployInfoRepository,
@@ -43,7 +43,7 @@ impl InitService {
     pub fn clone_repos(&self, deploy_infos: &Vec<DeployInfo>) {
         let args = &self.args;
 
-        let start: Vec<Result<CloneRepoTaskResult, CloneRepoServiceError>> = vec![];
+        let start: Vec<Result<CloneRepoTaskResult, CloneRepoTaskError>> = vec![];
 
         deploy_infos
             .iter()
@@ -51,7 +51,7 @@ impl InitService {
                 let result = match previous.last() {
                     None => self.clone_repo(args, deploy_info),
                     Some(previousResult) => {
-                        previousResult.and_then(|_| self.clone_repo(args, deploy_info))
+                        previousResult.as_ref().map_err(Clone::clone).and_then(|_| self.clone_repo(args, deploy_info))
                     }
                 };
 
@@ -64,7 +64,7 @@ impl InitService {
         &self,
         args: &Args,
         deploy_info: &DeployInfo,
-    ) -> Result<CloneRepoTaskResult, CloneRepoServiceError> {
+    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         self.clone_repo_task.execute(
             deploy_info.ssh_git_url,
             "/tmp",
