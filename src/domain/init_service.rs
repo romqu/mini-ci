@@ -59,21 +59,6 @@ impl InitService {
                     .map_err(|_| InitServiceError::CouldNotCloneRepo)
             })
             .collect()
-        /*
-        let start: Vec<Result<CloneRepoTaskResult, CloneRepoTaskError>> = vec![];
-        deploy_infos
-        .iter()
-        .fold(start, |mut previous, deploy_info| {
-            let result = match previous.last() {
-                None => self.clone_repo(args, deploy_info),
-                Some(previousResult) => {
-                    previousResult.as_ref().map_err(Clone::clone).and_then(|_| self.clone_repo(args, deploy_info))
-                }
-            };
-
-            previous.push(result);
-            previous
-        });*/
     }
 
     fn clone_repo(

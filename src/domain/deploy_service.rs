@@ -3,15 +3,13 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 
-use cmd_lib::*;
+use cmd_lib::FunChildren;
 use git2::{Branch, BranchType, ObjectType};
 use git2::build::CheckoutBuilder;
 
 use crate::data::deploy_info_repository::DeployInfoEntity;
 use crate::DeployInfoRepository;
-use crate::domain::deploy_service::DeployServiceError::{
-    CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo,
-};
+use crate::domain::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
 use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
 
 pub struct DeployService {
@@ -81,17 +79,14 @@ impl DeployService {
     }
 
     fn execute_deploy_commands(deploy_info: &DeployInfoEntity) -> JoinHandle<()> {
-        let path = &deploy_info.repo_path;
-        let path_copy = path.clone();
+        let path = deploy_info.repo_path.clone();
+        let command_builders = Arc::new(Mutex::new(deploy_info.command_builders.clone()));
 
         thread::spawn(move || {
-            let commands = vec![
-                spawn_with_output!(cd ${path_copy} | docker-compose build --build-arg ENVPROFILE=dev),
-                spawn_with_output!(docker-compose -f ${path_copy}/docker-compose.yml up --force-recreate --no-deps -d api),
-            ];
+            for command_builder in command_builders.lock().unwrap().iter() {
+                let builder_result: std::io::Result<FunChildren> = command_builder(path.clone());
 
-            for command in commands {
-                command.unwrap().wait_with_pipe(&mut |pipe| {
+                builder_result.unwrap().wait_with_pipe(&mut |pipe| {
                     BufReader::new(pipe)
                         .lines()
                         .filter_map(|line| line.ok())
