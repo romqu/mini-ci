@@ -1,11 +1,9 @@
 use cmd_lib::FunChildren;
-use futures::stream::iter;
 use git2::Repository;
 
 use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::domain::clone_repo_task::{CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::clone_repo_task::CloneRepoTaskError::CouldNotCloneRepo;
 use crate::domain::init_service::InitServiceError::CouldNotSaveDeployInfo;
 
 pub struct InitService {
@@ -125,7 +123,7 @@ pub struct DeployInfo {
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
 }
 
-enum InitServiceError {
+pub enum InitServiceError {
     CouldNotCloneRepo,
     CouldNotSaveDeployInfo,
 }

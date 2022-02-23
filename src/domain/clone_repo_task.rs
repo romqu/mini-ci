@@ -1,7 +1,5 @@
-use std::{env, fs};
-use std::cell::RefCell;
+use std::fs;
 use std::path::Path;
-use std::rc::Rc;
 
 use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
 use git2::build::RepoBuilder;
@@ -11,8 +9,6 @@ use crate::domain::clone_repo_task::CloneRepoTaskError::{
     CouldNotCloneRepo, CouldNotDeleteExistingRepoDir, CouldNotExtractRepoName,
     CouldNotFindHomePath, CouldNotSaveRepoInfo,
 };
-
-const HOME_VAR: &str = "HOME";
 
 lazy_static! {
     static ref REPO_NAME_REGEX: Regex = Regex::new(r".*/(.*(\.))").unwrap();
@@ -40,7 +36,9 @@ impl CloneRepoTask {
         return self
             .extract_repo_name(url)
             .and_then(|data_holder_one| self.delete_repo_dir(into_dir_path, data_holder_one))
-            .and_then(|data_holder_two| self.clone_repo(url, data_holder_two, ssh_passphrase, ssh_key_path));
+            .and_then(|data_holder_two| {
+                self.clone_repo(url, data_holder_two, ssh_passphrase, ssh_key_path)
+            });
     }
 
     fn extract_repo_name(&self, url: &str) -> Result<TempDataHolderOne, CloneRepoTaskError> {
@@ -66,7 +64,6 @@ impl CloneRepoTask {
         let formatted_repo_path = format!("{0}/{1}", into_dir_path, repo_name);
         let repo_path = Path::new(formatted_repo_path.as_str()).to_owned();
         let second = TempDataHolderTwo {
-            repo_name,
             formatted_repo_path,
         };
 
@@ -127,15 +124,11 @@ struct TempDataHolderOne {
 }
 
 struct TempDataHolderTwo {
-    repo_name: String,
     formatted_repo_path: String,
 }
 
-#[derive(Debug, Clone)]
 pub enum CloneRepoTaskError {
     CouldNotExtractRepoName,
-    CouldNotFindHomePath,
     CouldNotDeleteExistingRepoDir,
     CouldNotCloneRepo,
-    CouldNotSaveRepoInfo,
 }
