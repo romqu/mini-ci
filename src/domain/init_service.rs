@@ -6,6 +6,7 @@ use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::domain::clone_repo_task::{CloneRepoTaskError, CloneRepoTaskResult};
 use crate::domain::clone_repo_task::CloneRepoTaskError::CouldNotCloneRepo;
+use crate::domain::init_service::InitServiceError::CouldNotSaveDeployInfo;
 
 pub struct InitService {
     pub deploy_info_repo: DeployInfoRepository,
@@ -27,9 +28,8 @@ impl InitService {
     }
 
     pub fn execute(&mut self) {
-        let deploy_infos = Self::get_deploy_infos();
-
-        self.clone_repos(&deploy_infos);
+        self.clone_repos(&Self::get_deploy_infos())
+            .and_then(|data| self.save_deploy_infos(data));
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
@@ -45,23 +45,22 @@ impl InitService {
     pub fn clone_repos(
         &self,
         deploy_infos: &Vec<DeployInfo>,
-    ) -> Result<Vec<TempDataHolderOne>, CloneRepoTaskError> {
-        let args = &self.args;
-
+    ) -> Result<Vec<TempDataHolderOne>, InitServiceError> {
         deploy_infos
             .iter()
             .map(|deploy_info| {
-                self.clone_repo(args, deploy_info).map(|task_result| {
-                    TempDataHolderOne {
-                        ssh_git_url: deploy_info.ssh_git_url,
-                        command_builders: deploy_info.command_builders.clone(),
-                        repo_path: task_result.repo_path,
-                        git_repository: task_result.git_repository,
-                    }
-                })
+                self.clone_repo(&self.args, deploy_info)
+                    .map(|task_result| {
+                        TempDataHolderOne {
+                            ssh_git_url: deploy_info.ssh_git_url,
+                            command_builders: deploy_info.command_builders.clone(),
+                            repo_path: task_result.repo_path,
+                            git_repository: task_result.git_repository,
+                        }
+                    })
+                    .map_err(|_| InitServiceError::CouldNotCloneRepo)
             })
             .collect()
-
         /*
         let start: Vec<Result<CloneRepoTaskResult, CloneRepoTaskError>> = vec![];
         deploy_infos
@@ -91,6 +90,27 @@ impl InitService {
             &args.ssh_key_path,
         )
     }
+
+    fn save_deploy_infos(
+        &mut self,
+        temp_data_holder_one: Vec<TempDataHolderOne>,
+    ) -> Result<Vec<DeployInfoEntity>, InitServiceError> {
+        temp_data_holder_one
+            .into_iter()
+            .map(|data| {
+                let entity = DeployInfoEntity {
+                    ssh_git_url: data.ssh_git_url,
+                    command_builders: data.command_builders,
+                    repo_path: data.repo_path,
+                    git_repository: data.git_repository,
+                };
+
+                self.deploy_info_repo
+                    .save(entity.ssh_git_url.to_string(), entity)
+                    .ok_or(CouldNotSaveDeployInfo)
+            })
+            .collect()
+    }
 }
 
 pub struct TempDataHolderOne {
@@ -103,4 +123,9 @@ pub struct TempDataHolderOne {
 pub struct DeployInfo {
     pub ssh_git_url: &'static str,
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
+}
+
+enum InitServiceError {
+    CouldNotCloneRepo,
+    CouldNotSaveDeployInfo,
 }

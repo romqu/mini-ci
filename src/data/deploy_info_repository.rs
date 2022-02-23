@@ -6,7 +6,7 @@ use git2::Repository;
 pub struct DeployInfoEntity {
     pub ssh_git_url: &'static str,
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
-    pub path: String,
+    pub repo_path: String,
     pub git_repository: Repository,
 }
 
@@ -23,7 +23,7 @@ impl DeployInfoRepository {
         self.cache.insert(key, entity)
     }
 
-    pub fn get(&self, key: &'static str) -> Option<&DeployInfoEntity> {
+    pub fn get(&self, key: &String) -> Option<&DeployInfoEntity> {
         self.cache.get(key)
     }
 }

@@ -9,42 +9,37 @@ use cmd_lib::*;
 use git2::{Branch, BranchType, ObjectType};
 use git2::build::CheckoutBuilder;
 
-use crate::{DeployInfo, GithubPushEventDto, GitRepoInfoRepository};
 use crate::data::deploy_info_repository::DeployInfoEntity;
-use crate::data::repo_info_repository::GitRepoInfoEntity;
-use crate::domain::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
+use crate::DeployInfoRepository;
+use crate::domain::deploy_service::DeployServiceError::{
+    CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo,
+};
+use crate::domain::init_service::DeployInfo;
+use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
 
 pub struct DeployService {
-    git_repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,
+    deploy_info_repo: Rc<RefCell<DeployInfoRepository>>,
 }
 
 impl DeployService {
-    pub fn new(
-        repo_info_repo: Rc<RefCell<GitRepoInfoRepository>>,
-    ) -> DeployService {
-        return DeployService {
-            git_repo_info_repo: repo_info_repo,
-        };
+    pub fn new(deploy_info_repo: Rc<RefCell<DeployInfoRepository>>) -> DeployService {
+        return DeployService { deploy_info_repo };
     }
 
-    pub fn execute(
-        &self,
-        dto: GithubPushEventDto,
-        deploy_info: DeployInfoEntity,
-    ) -> Result<JoinHandle<()>, DeployServiceError> {
+    pub fn execute(&self, dto: GithubPushEventDto) -> Result<JoinHandle<()>, DeployServiceError> {
         return self
-            .git_repo_info_repo
+            .deploy_info_repo
             .borrow()
-            .get(deploy_info.ssh_git_url)
+            .get(&dto.repository.ssh_url)
             .ok_or(CouldNotGetRepoInfo)
-            .and_then(|git_repo_info| Self::get_branch(dto, git_repo_info))
+            .and_then(|deploy_info| Self::get_branch(dto, deploy_info))
             .and_then(|temp_data_holder| Self::checkout_branch(temp_data_holder))
             .map(|repo_info| Self::execute_deploy_commands(repo_info));
     }
 
     fn get_branch(
         dto: GithubPushEventDto,
-        git_repo_info: &GitRepoInfoEntity,
+        deploy_info: &DeployInfoEntity,
     ) -> Result<TempDataHolderOne, DeployServiceError> {
         let refs = dto.ref_field;
 
@@ -54,13 +49,13 @@ impl DeployService {
                 let branch_name = &refs[position..];
                 let formatted_branch_name = format!("origin/{}", branch_name);
 
-                git_repo_info
+                deploy_info
                     .git_repository
                     .find_branch(formatted_branch_name.as_str(), BranchType::Remote)
                     .map(|branch| {
                         TempDataHolderOne {
                             branch,
-                            git_repo_info,
+                            deploy_info,
                             refs,
                         }
                     })
@@ -68,29 +63,27 @@ impl DeployService {
             })
     }
 
-    fn checkout_branch(
-        first: TempDataHolderOne,
-    ) -> Result<&GitRepoInfoEntity, DeployServiceError> {
-        let git_repo_info = first.git_repo_info;
-        let git_repository = &git_repo_info.git_repository;
+    fn checkout_branch(first: TempDataHolderOne) -> Result<&DeployInfoEntity, DeployServiceError> {
+        let deploy_info = first.deploy_info;
+        let git_repository = &deploy_info.git_repository;
         let branch = first.branch;
         let refs = first.refs;
 
         branch
             .get()
             .peel_to_tree()
-            .and_then(|tree| git_repo_info.git_repository.find_tree(tree.id()))
+            .and_then(|tree| deploy_info.git_repository.find_tree(tree.id()))
             .and_then(|tree| git_repository.find_object(tree.id(), Option::Some(ObjectType::Tree)))
             .and_then(|git_object| {
                 git_repository.checkout_tree(&git_object, Some(CheckoutBuilder::default().force()))
             })
             .and_then(|_| git_repository.set_head(refs.as_str()))
             .map_err(|_| CouldNotCheckoutBranch)
-            .map(|_| git_repo_info)
+            .map(|_| deploy_info)
     }
 
-    fn execute_deploy_commands(repo_info: &GitRepoInfoEntity) -> JoinHandle<()> {
-        let path = &repo_info.path;
+    fn execute_deploy_commands(deploy_info: &DeployInfoEntity) -> JoinHandle<()> {
+        let path = &deploy_info.repo_path;
         let path_copy = path.clone();
 
         thread::spawn(move || {
@@ -111,10 +104,9 @@ impl DeployService {
     }
 }
 
-
 struct TempDataHolderOne<'a> {
     branch: Branch<'a>,
-    git_repo_info: &'a GitRepoInfoEntity,
+    deploy_info: &'a DeployInfoEntity,
     refs: String,
 }
 
