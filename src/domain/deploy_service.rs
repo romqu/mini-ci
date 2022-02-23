@@ -1,7 +1,4 @@
-use std::any::Any;
-use std::cell::RefCell;
 use std::io::{BufRead, BufReader};
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
@@ -15,7 +12,6 @@ use crate::DeployInfoRepository;
 use crate::domain::deploy_service::DeployServiceError::{
     CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo,
 };
-use crate::domain::init_service::DeployInfo;
 use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
 
 pub struct DeployService {

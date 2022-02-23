@@ -1,9 +1,7 @@
-use std::thread::JoinHandle;
-
-use actix_web::{HttpResponse, web};
+use actix_web::HttpResponse;
 use actix_web::web::Json;
 
-use crate::{DEPLOY_SERVICE_CELL, DeployService, GithubPushEventDto};
+use crate::{DEPLOY_SERVICE_CELL, GithubPushEventDto};
 
 pub async fn handle_post_github_push_event(
     json: Json<GithubPushEventDto>,

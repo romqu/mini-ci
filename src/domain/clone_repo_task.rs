@@ -7,7 +7,6 @@ use regex::Regex;
 
 use crate::domain::clone_repo_task::CloneRepoTaskError::{
     CouldNotCloneRepo, CouldNotDeleteExistingRepoDir, CouldNotExtractRepoName,
-    CouldNotFindHomePath, CouldNotSaveRepoInfo,
 };
 
 lazy_static! {

@@ -3,20 +3,15 @@
 extern crate lazy_static;
 extern crate regex;
 
-use std::any::Any;
-use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::lazy::SyncOnceCell;
 use std::sync::{Arc, Mutex};
 
 use actix_web::{App, HttpServer, web};
 use clap::Parser;
 use cmd_lib::spawn_with_output;
-use futures::TryFutureExt;
-use serde::{Deserialize, Serialize};
 
-use crate::data::deploy_info_repository::DeployInfoRepository;
+use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::domain::clone_repo_task::CloneRepoTask;
 use crate::domain::deploy_service::DeployService;
 use crate::domain::init_service::InitService;
@@ -32,13 +27,8 @@ static DEPLOY_SERVICE_CELL: SyncOnceCell<DeployService> = SyncOnceCell::new();
 
 #[actix_web::main]
 async fn main() -> Result<(), MainError> {
-    cmd_lib::set_pipefail(false);
-
-    let init_result = init_dependencies()
-        .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp));
-
-    match init_result {
-        Ok(_) => start_server().await.map_err(|_| CouldNotStartApp),
+    match init_app() {
+        Ok(_) => start_app().await.map_err(|_| CouldNotStartApp),
         Err(err) => Err(err),
     }
 
@@ -49,16 +39,9 @@ async fn main() -> Result<(), MainError> {
     };*/
 }
 
-async fn start_server() -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new().route(
-            "/api/v1/events/push",
-            web::post().to(handle_post_github_push_event),
-        )
-    })
-        .bind("0.0.0.0:8083")?
-        .run()
-        .await
+fn init_app() -> Result<Vec<DeployInfoEntity>, MainError> {
+    init_dependencies()
+        .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp))
 }
 
 fn init_dependencies() -> Result<InitService, MainError> {
@@ -75,6 +58,18 @@ fn init_dependencies() -> Result<InitService, MainError> {
         .set(DeployService::new(git_repo_info_repo.clone()))
         .map_err(|_| CouldNotInitDependencies)
         .map(|_| init_service)
+}
+
+async fn start_app() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new().route(
+            "/api/v1/events/push",
+            web::post().to(handle_post_github_push_event),
+        )
+    })
+        .bind("0.0.0.0:8083")?
+        .run()
+        .await
 }
 
 #[derive(Parser, Debug)]
