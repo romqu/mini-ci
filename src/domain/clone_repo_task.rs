@@ -22,7 +22,7 @@ pub struct CloneRepoTask {}
 
 pub struct CloneRepoTaskResult {
     pub repo_path: String,
-    pub repository: Repository,
+    pub git_repository: Repository,
 }
 
 impl CloneRepoTask {
@@ -116,7 +116,7 @@ impl CloneRepoTask {
             .map(|repo| {
                 CloneRepoTaskResult {
                     repo_path: second.formatted_repo_path,
-                    repository: repo,
+                    git_repository: repo,
                 }
             })
     }

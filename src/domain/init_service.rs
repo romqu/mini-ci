@@ -28,6 +28,8 @@ impl InitService {
 
     pub fn execute(&mut self) {
         let deploy_infos = Self::get_deploy_infos();
+
+        self.clone_repos(&deploy_infos);
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
@@ -40,24 +42,41 @@ impl InitService {
         }]
     }
 
-    pub fn clone_repos(&self, deploy_infos: &Vec<DeployInfo>) {
+    pub fn clone_repos(
+        &self,
+        deploy_infos: &Vec<DeployInfo>,
+    ) -> Result<Vec<TempDataHolderOne>, CloneRepoTaskError> {
         let args = &self.args;
-
-        let start: Vec<Result<CloneRepoTaskResult, CloneRepoTaskError>> = vec![];
 
         deploy_infos
             .iter()
-            .fold(start, |mut previous, deploy_info| {
-                let result = match previous.last() {
-                    None => self.clone_repo(args, deploy_info),
-                    Some(previousResult) => {
-                        previousResult.as_ref().map_err(Clone::clone).and_then(|_| self.clone_repo(args, deploy_info))
+            .map(|deploy_info| {
+                self.clone_repo(args, deploy_info).map(|task_result| {
+                    TempDataHolderOne {
+                        ssh_git_url: deploy_info.ssh_git_url,
+                        command_builders: deploy_info.command_builders.clone(),
+                        repo_path: task_result.repo_path,
+                        git_repository: task_result.git_repository,
                     }
-                };
+                })
+            })
+            .collect()
 
-                previous.push(result);
-                previous
-            });
+        /*
+        let start: Vec<Result<CloneRepoTaskResult, CloneRepoTaskError>> = vec![];
+        deploy_infos
+        .iter()
+        .fold(start, |mut previous, deploy_info| {
+            let result = match previous.last() {
+                None => self.clone_repo(args, deploy_info),
+                Some(previousResult) => {
+                    previousResult.as_ref().map_err(Clone::clone).and_then(|_| self.clone_repo(args, deploy_info))
+                }
+            };
+
+            previous.push(result);
+            previous
+        });*/
     }
 
     fn clone_repo(
@@ -77,7 +96,7 @@ impl InitService {
 pub struct TempDataHolderOne {
     pub ssh_git_url: &'static str,
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
-    pub path: String,
+    pub repo_path: String,
     pub git_repository: Repository,
 }
 
