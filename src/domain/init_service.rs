@@ -27,9 +27,9 @@ impl InitService {
         }
     }
 
-    pub fn execute(&mut self) {
+    pub fn execute(&mut self) -> Result<Vec<DeployInfoEntity>, InitServiceError> {
         self.clone_repos(&Self::get_deploy_infos())
-            .and_then(|data| self.save_deploy_infos(data));
+            .and_then(|data| self.save_deploy_infos(data))
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {

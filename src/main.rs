@@ -1,3 +1,4 @@
+#![feature(once_cell)]
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
@@ -8,6 +9,7 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::lazy::{SyncLazy, SyncOnceCell};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -30,19 +32,24 @@ mod data;
 mod domain;
 mod entrypoint;
 
+static DEPLOY_SERVICE_CELL: SyncOnceCell<DeployService> = SyncOnceCell::new();
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     cmd_lib::set_pipefail(false);
 
     let args: Args = Args::parse();
-    let git_repo_info_repo = Rc::new(RefCell::new(DeployInfoRepository::new(HashMap::new())));
+    let git_repo_info_repo = Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
     let clone_repo_task = CloneRepoTask::new();
     let mut init_service = InitService::new(
         DeployInfoRepository::new(HashMap::new()),
         clone_repo_task,
         args,
     );
-    let deploy_service = DeployService::new(git_repo_info_repo.clone());
+
+    DEPLOY_SERVICE_CELL
+        .set(DeployService::new(git_repo_info_repo.clone()))
+        .unwrap();
 
     init_service.execute();
 
@@ -52,8 +59,7 @@ async fn main() -> std::io::Result<()> {
         ..dto
     };
 
-
-    HttpServer::new(move || {
+    HttpServer::new(|| {
         App::new().route(
             "/api/v1/events/push",
             web::post().to(handle_post_github_push_event),

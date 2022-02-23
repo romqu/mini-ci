@@ -2,6 +2,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -18,18 +19,19 @@ use crate::domain::init_service::DeployInfo;
 use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
 
 pub struct DeployService {
-    deploy_info_repo: Rc<RefCell<DeployInfoRepository>>,
+    deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
 }
 
 impl DeployService {
-    pub fn new(deploy_info_repo: Rc<RefCell<DeployInfoRepository>>) -> DeployService {
+    pub fn new(deploy_info_repo: Arc<Mutex<DeployInfoRepository>>) -> DeployService {
         return DeployService { deploy_info_repo };
     }
 
     pub fn execute(&self, dto: GithubPushEventDto) -> Result<JoinHandle<()>, DeployServiceError> {
         return self
             .deploy_info_repo
-            .borrow()
+            .lock()
+            .unwrap()
             .get(&dto.repository.ssh_url)
             .ok_or(CouldNotGetRepoInfo)
             .and_then(|deploy_info| Self::get_branch(dto, deploy_info))
