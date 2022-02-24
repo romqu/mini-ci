@@ -1,3 +1,4 @@
+use std::collections::hash_map::OccupiedError;
 use std::collections::HashMap;
 
 use cmd_lib::FunChildren;
@@ -19,8 +20,12 @@ impl DeployInfoRepository {
         DeployInfoRepository { cache }
     }
 
-    pub fn save(&mut self, key: String, entity: DeployInfoEntity) -> Option<DeployInfoEntity> {
-        self.cache.insert(key, entity)
+    pub fn save(
+        &mut self,
+        key: String,
+        entity: DeployInfoEntity,
+    ) -> Result<&mut DeployInfoEntity, OccupiedError<'_, String, DeployInfoEntity>> {
+        self.cache.try_insert(key, entity)
     }
 
     pub fn get(&self, key: &String) -> Option<&DeployInfoEntity> {

@@ -1,4 +1,5 @@
 #![feature(once_cell)]
+#![feature(map_try_insert)]
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
@@ -11,7 +12,7 @@ use actix_web::{App, HttpServer, web};
 use clap::Parser;
 use cmd_lib::spawn_with_output;
 
-use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
+use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::domain::clone_repo_task::CloneRepoTask;
 use crate::domain::deploy_service::DeployService;
 use crate::domain::init_service::InitService;
@@ -39,9 +40,12 @@ async fn main() -> Result<(), MainError> {
     };*/
 }
 
-fn init_app() -> Result<Vec<DeployInfoEntity>, MainError> {
+fn init_app() -> Result<(), MainError> {
     init_dependencies()
-        .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp))
+        .and_then(|mut init_service| init_service.execute().map_err(|err| {
+            println!("{:?}", err);
+            CouldNotInitApp
+        }))
 }
 
 fn init_dependencies() -> Result<InitService, MainError> {

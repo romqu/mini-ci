@@ -4,7 +4,6 @@ use git2::Repository;
 use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::domain::clone_repo_task::{CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::init_service::InitServiceError::CouldNotSaveDeployInfo;
 
 pub struct InitService {
     pub deploy_info_repo: DeployInfoRepository,
@@ -25,7 +24,7 @@ impl InitService {
         }
     }
 
-    pub fn execute(&mut self) -> Result<Vec<DeployInfoEntity>, InitServiceError> {
+    pub fn execute(&mut self) -> Result<(), InitServiceError> {
         self.clone_repos(&Self::get_deploy_infos())
             .and_then(|data| self.save_deploy_infos(data))
     }
@@ -76,23 +75,21 @@ impl InitService {
 
     fn save_deploy_infos(
         &mut self,
-        temp_data_holder_one: Vec<TempDataHolderOne>,
-    ) -> Result<Vec<DeployInfoEntity>, InitServiceError> {
-        temp_data_holder_one
-            .into_iter()
-            .map(|data| {
-                let entity = DeployInfoEntity {
-                    ssh_git_url: data.ssh_git_url,
-                    command_builders: data.command_builders,
-                    repo_path: data.repo_path,
-                    git_repository: data.git_repository,
-                };
+        data_vec: Vec<TempDataHolderOne>,
+    ) -> Result<(), InitServiceError> {
+        let deploy_infos = data_vec.into_iter().map(|data| DeployInfoEntity {
+            ssh_git_url: data.ssh_git_url,
+            command_builders: data.command_builders,
+            repo_path: data.repo_path,
+            git_repository: data.git_repository,
+        });
 
-                self.deploy_info_repo
-                    .save(entity.ssh_git_url.to_string(), entity)
-                    .ok_or(CouldNotSaveDeployInfo)
-            })
-            .collect()
+        for deploy_info in deploy_infos {
+            self.deploy_info_repo
+                .save(deploy_info.ssh_git_url.to_string(), deploy_info);
+        }
+
+        Ok({})
     }
 }
 
@@ -108,7 +105,7 @@ pub struct DeployInfo {
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
 }
 
+#[derive(Debug)]
 pub enum InitServiceError {
     CouldNotCloneRepo,
-    CouldNotSaveDeployInfo,
 }
