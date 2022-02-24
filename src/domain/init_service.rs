@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use cmd_lib::{FunChildren, spawn_with_output};
 use git2::Repository;
 
@@ -6,14 +8,14 @@ use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 
 pub struct InitService {
-    pub deploy_info_repo: DeployInfoRepository,
+    pub deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
     pub clone_repo_task: CloneRepoTask,
     pub args: StartupArgs,
 }
 
 impl InitService {
     pub fn new(
-        deploy_info_repo: DeployInfoRepository,
+        deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
         clone_repo_task: CloneRepoTask,
         args: StartupArgs,
     ) -> InitService {
@@ -85,7 +87,7 @@ impl InitService {
         });
 
         for deploy_info in deploy_infos {
-            self.deploy_info_repo
+            self.deploy_info_repo.lock().unwrap()
                 .save(deploy_info.ssh_git_url.to_string(), deploy_info);
         }
 

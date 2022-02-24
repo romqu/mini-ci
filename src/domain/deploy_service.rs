@@ -6,6 +6,7 @@ use std::thread::JoinHandle;
 use cmd_lib::FunChildren;
 use git2::{Branch, BranchType, ObjectType};
 use git2::build::CheckoutBuilder;
+use strum::Display;
 
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::domain::deploy_service::DeployServiceError::{
@@ -104,7 +105,7 @@ struct TempDataHolderOne<'a> {
     refs: String,
 }
 
-#[derive(Debug)]
+#[derive(Display, Debug)]
 pub enum DeployServiceError {
     CouldNotGetBranch,
     CouldNotGetRepoInfo,

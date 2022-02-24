@@ -11,6 +11,9 @@ pub async fn handle_post_github_push_event(json: Json<GithubPushEventDto>) -> Ht
         .execute(json.into_inner())
     {
         Ok(_) => HttpResponse::Ok().finish(),
-        Err(_) => HttpResponse::BadRequest().finish(),
+        Err(err) => {
+            println!("{}", err);
+            HttpResponse::BadRequest().finish()
+        }
     }
 }
