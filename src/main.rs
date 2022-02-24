@@ -1,30 +1,23 @@
 #![feature(once_cell)]
 #![feature(map_try_insert)]
-#[macro_use]
 extern crate lazy_static;
 extern crate regex;
 
 use std::collections::HashMap;
-use std::lazy::SyncOnceCell;
 use std::sync::{Arc, Mutex};
 
 use actix_web::{App, HttpServer, web};
 use clap::Parser;
-use cmd_lib::spawn_with_output;
 
-use crate::data::deploy_info_repository::DeployInfoRepository;
-use crate::domain::clone_repo_task::CloneRepoTask;
-use crate::domain::deploy_service::DeployService;
-use crate::domain::init_service::InitService;
-use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
-use crate::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
+use untitled::data::deploy_info_repository::DeployInfoRepository;
+use untitled::di::singletons::DEPLOY_SERVICE_CELL;
+use untitled::di::start_up_args::StartupArgs;
+use untitled::domain::clone_repo_task::CloneRepoTask;
+use untitled::domain::deploy_service::DeployService;
+use untitled::domain::init_service::InitService;
+use untitled::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
+
 use crate::MainError::{CouldNotInitApp, CouldNotInitDependencies, CouldNotStartApp};
-
-mod data;
-mod domain;
-mod entrypoint;
-
-static DEPLOY_SERVICE_CELL: SyncOnceCell<DeployService> = SyncOnceCell::new();
 
 #[actix_web::main]
 async fn main() -> Result<(), MainError> {
@@ -32,24 +25,15 @@ async fn main() -> Result<(), MainError> {
         Ok(_) => start_app().await.map_err(|_| CouldNotStartApp),
         Err(err) => Err(err),
     }
-
-    /*    let dto = GithubPushEventDto::default();
-    let dto1 = GithubPushEventDto {
-        ref_field: "refs/heads/mvp".to_string(),
-        ..dto
-    };*/
 }
 
 fn init_app() -> Result<(), MainError> {
     init_dependencies()
-        .and_then(|mut init_service| init_service.execute().map_err(|err| {
-            println!("{:?}", err);
-            CouldNotInitApp
-        }))
+        .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp))
 }
 
 fn init_dependencies() -> Result<InitService, MainError> {
-    let args: Args = Args::parse();
+    let args: StartupArgs = StartupArgs::parse();
     let git_repo_info_repo = Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
     let clone_repo_task = CloneRepoTask::new();
     let init_service = InitService::new(
@@ -74,16 +58,6 @@ async fn start_app() -> std::io::Result<()> {
         .bind("0.0.0.0:8083")?
         .run()
         .await
-}
-
-#[derive(Parser, Debug)]
-#[clap(long_about = None)]
-pub struct Args {
-    #[clap(long)]
-    ssh_passphrase: String,
-
-    #[clap(long)]
-    ssh_key_path: String,
 }
 
 #[derive(Debug)]

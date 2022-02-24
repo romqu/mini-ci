@@ -1,21 +1,21 @@
-use cmd_lib::FunChildren;
+use cmd_lib::{FunChildren, spawn_with_output};
 use git2::Repository;
 
-use crate::{Args, CloneRepoTask, spawn_with_output};
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
-use crate::domain::clone_repo_task::{CloneRepoTaskError, CloneRepoTaskResult};
+use crate::di::start_up_args::StartupArgs;
+use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 
 pub struct InitService {
     pub deploy_info_repo: DeployInfoRepository,
     pub clone_repo_task: CloneRepoTask,
-    pub args: Args,
+    pub args: StartupArgs,
 }
 
 impl InitService {
     pub fn new(
         deploy_info_repo: DeployInfoRepository,
         clone_repo_task: CloneRepoTask,
-        args: Args,
+        args: StartupArgs,
     ) -> InitService {
         InitService {
             deploy_info_repo,
@@ -62,7 +62,7 @@ impl InitService {
 
     fn clone_repo(
         &self,
-        args: &Args,
+        args: &StartupArgs,
         deploy_info: &DeployInfo,
     ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         self.clone_repo_task.execute(

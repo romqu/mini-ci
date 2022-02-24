@@ -3,6 +3,7 @@ use std::path::Path;
 
 use git2::{Cred, FetchOptions, RemoteCallbacks, Repository};
 use git2::build::RepoBuilder;
+use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::domain::clone_repo_task::CloneRepoTaskError::{

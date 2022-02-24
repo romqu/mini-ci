@@ -7,9 +7,10 @@ use cmd_lib::FunChildren;
 use git2::{Branch, BranchType, ObjectType};
 use git2::build::CheckoutBuilder;
 
-use crate::data::deploy_info_repository::DeployInfoEntity;
-use crate::DeployInfoRepository;
-use crate::domain::deploy_service::DeployServiceError::{CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo};
+use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
+use crate::domain::deploy_service::DeployServiceError::{
+    CouldNotCheckoutBranch, CouldNotGetBranch, CouldNotGetRepoInfo,
+};
 use crate::entrypoint::github_push_event_dto::GithubPushEventDto;
 
 pub struct DeployService {
