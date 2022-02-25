@@ -1,0 +1,11 @@
+---
+url: "git@github.com:romqu/schimmelhof-api.git"
+branches:
+  - name: dev
+    commands:
+      - "docker-compose build --build-arg ENVPROFILE=dev"
+      - "docker-compose up --force-recreate --no-deps -d api"
+  - name: master
+    commands:
+      - "docker-compose build --build-arg ENVPROFILE=prod"
+      - "docker-compose up --force-recreate --no-deps -d api"

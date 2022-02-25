@@ -1535,10 +1535,22 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edfa57a7f8d9c1d260a549e7224100f6c43d43f9103e06dd8b4095a9b2b43ce9"
 dependencies = [
- "form_urlencoded",
- "itoa",
- "ryu",
- "serde",
+    "form_urlencoded",
+    "itoa",
+    "ryu",
+    "serde",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a521f2940385c165a24ee286aa8599633d162077a54bdcae2a6fd5a7bfa7a0"
+dependencies = [
+    "indexmap",
+    "ryu",
+    "serde",
+    "yaml-rust",
 ]
 
 [[package]]
@@ -1547,9 +1559,9 @@ version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99cd6713db3cf16b6c84e06321e049a9b9f699826e16096d23bbcc44d15d51a6"
 dependencies = [
- "block-buffer",
- "cfg-if 1.0.0",
- "cpufeatures",
+    "block-buffer",
+    "cfg-if 1.0.0",
+    "cpufeatures",
  "digest",
  "opaque-debug",
 ]
@@ -1936,17 +1948,18 @@ dependencies = [
  "actix-rt",
  "actix-service",
  "actix-web",
- "clap",
- "cmd_lib",
- "env_logger",
- "futures",
- "git2",
- "json",
- "lazy_static",
- "regex",
- "serde",
- "serde_json",
- "strum",
+    "clap",
+    "cmd_lib",
+    "env_logger",
+    "futures",
+    "git2",
+    "json",
+    "lazy_static",
+    "regex",
+    "serde",
+    "serde_json",
+    "serde_yaml",
+    "strum",
 ]
 
 [[package]]
@@ -2097,6 +2110,15 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 dependencies = [
- "winapi 0.2.8",
- "winapi-build",
+    "winapi 0.2.8",
+    "winapi-build",
+]
+
+[[package]]
+name = "yaml-rust"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
+dependencies = [
+    "linked-hash-map",
 ]

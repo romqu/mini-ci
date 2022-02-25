@@ -2,7 +2,6 @@
 #![feature(map_try_insert)]
 
 
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
