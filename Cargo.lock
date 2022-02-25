@@ -129,17 +129,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45407e6e672ca24784baa667c5d32ef109ccdd8d5e0b5ebb9ef8a67f4dfb708e"
 dependencies = [
  "actix-codec",
- "actix-rt",
- "actix-service",
- "actix-utils",
- "futures-channel",
- "futures-util",
- "log",
- "mio",
- "mio-uds",
- "num_cpus",
- "slab",
- "socket2",
+    "actix-rt",
+    "actix-service",
+    "actix-utils",
+    "futures-channel",
+    "futures-util",
+    "log",
+    "mio",
+    "mio-uds",
+    "num_cpus",
+    "slab",
+    "socket2 0.3.19",
 ]
 
 [[package]]
@@ -158,12 +158,12 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47239ca38799ab74ee6a8a94d1ce857014b2ac36f242f70f3f75a66f691e791c"
 dependencies = [
- "actix-macros",
- "actix-rt",
- "actix-server",
- "actix-service",
- "log",
- "socket2",
+    "actix-macros",
+    "actix-rt",
+    "actix-server",
+    "actix-service",
+    "log",
+    "socket2 0.3.19",
 ]
 
 [[package]]
@@ -236,20 +236,20 @@ dependencies = [
  "derive_more",
  "encoding_rs",
  "futures-channel",
- "futures-core",
- "futures-util",
- "fxhash",
- "log",
- "mime",
- "pin-project 1.0.8",
- "regex",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "socket2",
- "time",
- "tinyvec",
- "url",
+    "futures-core",
+    "futures-util",
+    "fxhash",
+    "log",
+    "mime",
+    "pin-project 1.0.8",
+    "regex",
+    "serde",
+    "serde_json",
+    "serde_urlencoded",
+    "socket2 0.3.19",
+    "time",
+    "tinyvec",
+    "url",
 ]
 
 [[package]]
@@ -530,7 +530,37 @@ version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3825b1e8580894917dc4468cb634a1b4e9745fddc854edad72d9c04644c0319f"
 dependencies = [
- "cfg-if 1.0.0",
+    "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "curl"
+version = "0.4.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7de97b894edd5b5bcceef8b78d7da9b75b1d2f2f9a910569d0bde3dd31d84939"
+dependencies = [
+    "curl-sys",
+    "libc",
+    "openssl-probe",
+    "openssl-sys",
+    "schannel",
+    "socket2 0.4.2",
+    "winapi 0.3.9",
+]
+
+[[package]]
+name = "curl-sys"
+version = "0.4.52+curl-7.81.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14b8c2d1023ea5fded5b7b892e4b8e95f70038a421126a056761a84246a28971"
+dependencies = [
+    "cc",
+    "libc",
+    "libz-sys",
+    "openssl-sys",
+    "pkg-config",
+    "vcpkg",
+    "winapi 0.3.9",
 ]
 
 [[package]]
@@ -539,9 +569,9 @@ version = "0.99.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40eebddd2156ce1bb37b20bbe5151340a31828b1f2d22ba4141f3531710e38df"
 dependencies = [
- "convert_case",
- "proc-macro2",
- "quote",
+    "convert_case",
+    "proc-macro2",
+    "quote",
  "rustc_version 0.3.3",
  "syn",
 ]
@@ -919,10 +949,10 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7e2f18aece9709094573a9f24f483c4f65caa4298e2f7ae1b71cc65d853fad7"
 dependencies = [
- "socket2",
- "widestring",
- "winapi 0.3.9",
- "winreg",
+    "socket2 0.3.19",
+    "widestring",
+    "winapi 0.3.9",
+    "winreg",
 ]
 
 [[package]]
@@ -1460,6 +1490,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 
 [[package]]
+name = "schannel"
+version = "0.1.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f05ba609c234e60bee0d547fe94a4c7e9da733d1c962cf6e59efa4cd9c8bc75"
+dependencies = [
+    "lazy_static",
+    "winapi 0.3.9",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1562,8 +1602,8 @@ dependencies = [
     "block-buffer",
     "cfg-if 1.0.0",
     "cpufeatures",
- "digest",
- "opaque-debug",
+    "digest",
+    "opaque-debug",
 ]
 
 [[package]]
@@ -1599,9 +1639,19 @@ version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "122e570113d28d773067fab24266b66753f6ea915758651696b6e35e49f88d6e"
 dependencies = [
- "cfg-if 1.0.0",
- "libc",
- "winapi 0.3.9",
+    "cfg-if 1.0.0",
+    "libc",
+    "winapi 0.3.9",
+]
+
+[[package]]
+name = "socket2"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5dc90fe6c7be1a323296982db1836d1ea9e47b6839496dde9a541bc496df3516"
+dependencies = [
+    "libc",
+    "winapi 0.3.9",
 ]
 
 [[package]]
@@ -1610,7 +1660,7 @@ version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e113fb6f3de07a243d434a56ec6f186dfd51cb08448239fe7bcae73f87ff28ff"
 dependencies = [
- "version_check",
+    "version_check",
 ]
 
 [[package]]
@@ -1945,11 +1995,12 @@ checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 name = "untitled"
 version = "0.1.0"
 dependencies = [
- "actix-rt",
- "actix-service",
- "actix-web",
+    "actix-rt",
+    "actix-service",
+    "actix-web",
     "clap",
     "cmd_lib",
+    "curl",
     "env_logger",
     "futures",
     "git2",

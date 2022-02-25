@@ -1,4 +1,3 @@
-use std::fs;
 use std::sync::{Arc, Mutex};
 
 use cmd_lib::{FunChildren, spawn_with_output};
@@ -7,7 +6,6 @@ use git2::Repository;
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::init_service::InitServiceError::CouldNotReadYamlFile;
 
 pub struct InitService {
     pub deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
@@ -34,11 +32,13 @@ impl InitService {
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
-        let contents = fs::read_to_string("deploy-schimmelhof.yml")
+       /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
             .map_err(|_| CouldNotReadYamlFile)
             .and_then(|yaml_text| {
                 serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
             });
+
+        spawn_with_output!(bash -c "docker ps");*/
 
         vec![DeployInfo {
             ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
@@ -117,7 +117,6 @@ pub struct TempDataHolderOne {
 pub struct DeployInfo {
     pub ssh_git_url: &'static str,
     pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
-    pub commands: Vec<String>,
 }
 
 #[derive(Debug)]

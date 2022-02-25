@@ -3,29 +3,20 @@
 extern crate lazy_static;
 extern crate regex;
 
-use std::fs;
-use std::io::{BufRead, BufReader};
-
 use actix_web::{App, HttpServer, web};
-use cmd_lib::spawn_with_output;
+use curl::easy::Easy;
 use serde::{Deserialize, Serialize};
 
-use untitled::InitError;
 use untitled::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
+use untitled::InitError;
 
 #[actix_web::main]
 async fn main() -> Result<(), InitError> {
-    let contents = fs::read_to_string("deploy-schimmelhof.yml").unwrap();
-    let deploy_info: DeployInfo = serde_yaml::from_str(&contents).unwrap();
+    let mut easy = Easy::new();
+    easy.url("https://raw.githubusercontent.com/romqu/ubuntu-config-scripts/master/README.m?token=GHSAT0AAAAAABR6TMBHGSVKHW4HAVLNYJIYQZGTZA").unwrap();
+    easy.perform().unwrap();
 
-    println!("{}", deploy_info.url);
-
-    spawn_with_output!(bash -c "docker ps").unwrap().wait_with_pipe(&mut |pipe| {
-        BufReader::new(pipe)
-            .lines()
-            .filter_map(|line| line.ok())
-            .for_each(|line| println!("{}", line));
-    });
+    let a = easy.response_code().unwrap();
 
     Ok({})
 
