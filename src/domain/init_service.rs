@@ -6,8 +6,10 @@ use git2::Repository;
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
+use crate::GithubRepoRepository;
 
 pub struct InitService {
+    pub github_repo_repository: GithubRepoRepository,
     pub deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
     pub clone_repo_task: CloneRepoTask,
     pub args: StartupArgs,
@@ -15,11 +17,13 @@ pub struct InitService {
 
 impl InitService {
     pub fn new(
+        github_repo_repository: GithubRepoRepository,
         deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
         clone_repo_task: CloneRepoTask,
         args: StartupArgs,
     ) -> InitService {
         InitService {
+            github_repo_repository,
             deploy_info_repo,
             clone_repo_task,
             args,

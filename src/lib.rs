@@ -1,13 +1,15 @@
 #![feature(once_cell)]
 #![feature(map_try_insert)]
 
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use clap::Parser;
+use reqwest::{Client, header};
+use reqwest::header::HeaderValue;
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
+use crate::data::github_repo_repository::GithubRepoRepository;
 use crate::di::singletons::DEPLOY_SERVICE_CELL;
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::CloneRepoTask;
@@ -20,7 +22,6 @@ pub mod di;
 pub mod domain;
 pub mod entrypoint;
 
-
 pub fn init_app() -> Result<(), InitError> {
     init_dependencies()
         .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp))
@@ -28,18 +29,43 @@ pub fn init_app() -> Result<(), InitError> {
 
 fn init_dependencies() -> Result<InitService, InitError> {
     let args: StartupArgs = StartupArgs::parse();
-    let deploy_info_repository = Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
-    let clone_repo_task = CloneRepoTask::new();
-    let init_service = InitService::new(
-        deploy_info_repository.clone(),
-        clone_repo_task,
-        args,
-    );
+    let github_token = env!("GITHUB_TOKEN");
 
-    DEPLOY_SERVICE_CELL
-        .set(DeployService::new(deploy_info_repository.clone()))
+    init_github_api_client(github_token.to_string()).and_then(|api_client| {
+        let deploy_info_repository =
+            Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
+
+        let github_repo_repository = GithubRepoRepository::new(api_client);
+
+        let clone_repo_task = CloneRepoTask::new();
+        let init_service = InitService::new(
+            github_repo_repository,
+            deploy_info_repository.clone(),
+            clone_repo_task,
+            args,
+        );
+        DEPLOY_SERVICE_CELL
+            .set(DeployService::new(deploy_info_repository.clone()))
+            .map_err(|_| CouldNotInitDependencies)
+            .map(|_| init_service)
+    })
+}
+
+fn init_github_api_client(github_token: String) -> Result<Client, InitError> {
+    HeaderValue::from_str(("Bearer".to_owned().clone() + github_token.as_str()).as_str())
         .map_err(|_| CouldNotInitDependencies)
-        .map(|_| init_service)
+        .and_then(|bearer_header| {
+            let mut default_headers = header::HeaderMap::new();
+
+            default_headers.insert(header::USER_AGENT, HeaderValue::from_static("reqwest"));
+            default_headers.insert(header::ACCEPT, HeaderValue::from_static("application/json"));
+            default_headers.insert(header::AUTHORIZATION, bearer_header);
+
+            Client::builder()
+                .default_headers(default_headers)
+                .build()
+                .map_err(|_| CouldNotInitDependencies)
+        })
 }
 
 #[derive(Debug)]

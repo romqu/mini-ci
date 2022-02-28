@@ -4,7 +4,6 @@ extern crate lazy_static;
 extern crate regex;
 
 use actix_web::{App, HttpServer, web};
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -13,14 +12,13 @@ use untitled::InitError;
 
 #[tokio::main]
 async fn main() -> Result<(), InitError> {
-    // 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
 
-    let client = Client::new();
+    /*let client = Client::builder().build();
 
     let github_user_info = client
         .get("https://api.github.com/user")
         .header("User-Agent", "request")
-        .header("accept", "*/*")
+        .header("accept", "*")
         .bearer_auth("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")
         .send()
         .await
@@ -29,18 +27,18 @@ async fn main() -> Result<(), InitError> {
         .await
         .unwrap();
 
-    println!("{}", github_user_info.name);
+    println!("{}", github_user_info.name);*/
 
     /*let a = reqwest::get("https://raw.githubusercontent.com/romqu/ubuntu-config-scripts/master/README.md?token=GHSAT0AAAAAABR6TMBHGSVKHW4HAVLNYJIYQZGTZA")
     .await.unwrap().status();*/
 
-    Ok({})
-
     /*    match init_app() {
-            Ok(_) => start_app().await.map_err(|_| CouldNotStartApp),
-            Err(err) => Err(err),
-        }
-    */
+        Ok(_) => start_app().await.map_err(|_| CouldNotStartApp),
+        Err(err) => Err(err),
+    }
+*/
+
+    Ok({})
 }
 
 pub async fn start_app() -> std::io::Result<()> {
