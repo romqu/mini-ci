@@ -1,9 +1,5 @@
-use std::future::Future;
-
-use actix_service::Service;
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use reqwest::Client;
-use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -16,29 +12,43 @@ impl GithubRepoRepository {
         GithubRepoRepository { api_client }
     }
 
-    pub fn get_repos<'a>(
-        &self,
-        page: u32,
-        per_page: u32,
-    ) -> impl Future<Output=reqwest::Result<DtoWithHeaders<'a, Vec<GithubRepoDto>>>> {
-        self.api_client.get("").send().and_then(|response| {
-            let json_result = response.json::<Vec<GithubRepoDto>>();
-            json_result.map(move |result: reqwest::Result<Vec<GithubRepoDto>>| {
-                result.map(move |dto_list| {
-                    DtoWithHeaders {
-                        dto: dto_list,
-                        headers: response.headers(),
-                    }
+    pub async fn get_repos(&self, page: u32, per_page: u32) -> reqwest::Result<Vec<GithubRepoDto>> {
+        let url = format!(
+            "https://api.github.com/user/repos?per_page={}&page={}",
+            per_page, page
+        );
+
+        let response_result = self.api_client.get(url).send().await;
+
+        let dto_result_future =
+            response_result.map(|response| response.json::<Vec<GithubRepoDto>>());
+
+        match dto_result_future {
+            Ok(to_json) => to_json.boxed(),
+            Err(err) => async { Err(err) }.boxed(),
+        }
+            .await
+
+        /*        self.api_client.get("").send().and_then(|response| {
+                    let json_result = response.json::<Vec<GithubRepoDto>>();
+
+                    json_result.map(move |result: reqwest::Result<Vec<GithubRepoDto>>| {
+                        result.map(move |dto_list| {
+                            DtoWithHeaders {
+                                dto: dto_list,
+                                headers: response.headers().clone(),
+                            }
+                        })
+                    })
                 })
-            })
-        })
+        */
     }
 }
 
-pub struct DtoWithHeaders<'a, T> {
+/*pub struct DtoWithHeaders< T> {
     dto: T,
-    headers: &'a HeaderMap,
-}
+    headers: HeaderMap,
+}*/
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

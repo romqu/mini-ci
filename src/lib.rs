@@ -44,6 +44,7 @@ fn init_dependencies() -> Result<InitService, InitError> {
             clone_repo_task,
             args,
         );
+
         DEPLOY_SERVICE_CELL
             .set(DeployService::new(deploy_info_repository.clone()))
             .map_err(|_| CouldNotInitDependencies)
