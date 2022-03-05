@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use cmd_lib::{FunChildren, spawn_with_output};
+use futures::FutureExt;
 use git2::Repository;
 
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
@@ -35,14 +36,18 @@ impl InitService {
             .and_then(|data| self.save_deploy_infos(data))
     }
 
-    fn get_deploy_infos() -> Vec<DeployInfo> {
-       /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
-            .map_err(|_| CouldNotReadYamlFile)
-            .and_then(|yaml_text| {
-                serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
-            });
+    fn doo(&self) {
+        self.github_repo_repository.get_repos(1, 100).map(|repos| {});
+    }
 
-        spawn_with_output!(bash -c "docker ps");*/
+    fn get_deploy_infos() -> Vec<DeployInfo> {
+        /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
+             .map_err(|_| CouldNotReadYamlFile)
+             .and_then(|yaml_text| {
+                 serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
+             });
+
+         spawn_with_output!(bash -c "docker ps");*/
 
         vec![DeployInfo {
             ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",

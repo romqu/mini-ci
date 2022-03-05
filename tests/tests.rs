@@ -10,7 +10,7 @@ fn main() {
 }
 
 async fn test() {
-    init_app();
+    init_app().await;
 
     let dto = GithubPushEventDto::default();
     let post_dto = GithubPushEventDto {

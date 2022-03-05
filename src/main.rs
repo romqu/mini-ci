@@ -5,11 +5,12 @@ extern crate regex;
 
 use actix_web::{App, HttpServer, web};
 
+use untitled::{init_app, InitError};
 use untitled::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
-use untitled::InitError;
 
 #[tokio::main]
 async fn main() -> Result<(), InitError> {
+    init_app();
 
     /*let client = Client::builder().build();
 

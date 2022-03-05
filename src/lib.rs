@@ -2,6 +2,7 @@
 #![feature(map_try_insert)]
 
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 
 use clap::Parser;
@@ -34,9 +35,7 @@ fn init_dependencies() -> Result<InitService, InitError> {
     init_github_api_client(github_token.to_string()).and_then(|api_client| {
         let deploy_info_repository =
             Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
-
         let github_repo_repository = GithubRepoRepository::new(api_client);
-
         let clone_repo_task = CloneRepoTask::new();
         let init_service = InitService::new(
             github_repo_repository,
@@ -53,13 +52,13 @@ fn init_dependencies() -> Result<InitService, InitError> {
 }
 
 fn init_github_api_client(github_token: String) -> Result<Client, InitError> {
-    HeaderValue::from_str(("Bearer".to_owned().clone() + github_token.as_str()).as_str())
+    HeaderValue::from_str(("Bearer ".to_owned().clone() + github_token.as_str()).as_str())
         .map_err(|_| CouldNotInitDependencies)
         .and_then(|bearer_header| {
             let mut default_headers = header::HeaderMap::new();
 
             default_headers.insert(header::USER_AGENT, HeaderValue::from_static("reqwest"));
-            default_headers.insert(header::ACCEPT, HeaderValue::from_static("application/json"));
+            default_headers.insert(header::ACCEPT, HeaderValue::from_static("application/vnd.github.v3+json"));
             default_headers.insert(header::AUTHORIZATION, bearer_header);
 
             Client::builder()
