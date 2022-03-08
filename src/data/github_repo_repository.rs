@@ -16,19 +16,24 @@ impl GithubRepoRepository {
         &self,
         page: u32,
         per_page: u32,
+        owner_type: &'static str,
+        sort_by: &'static str,
+        sort_direction: &'static str,
     ) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, reqwest::Error> {
         let url = format!(
-            "https://api.github.com/user/repos?per_page={}&page={}",
-            per_page, page
+            "https://api.github.com/user/repos?per_page={}&page={}&type={}&sort={}&direction={}",
+            per_page, page, owner_type, sort_by, sort_direction
         );
 
         let response = self.api_client.get(url).send().await?;
 
-        let github_repo_list_dto = &response.json::<Vec<GithubRepoDto>>().await?;
+        let headers = response.headers().clone();
+
+        let github_repo_list_dto = response.json::<Vec<GithubRepoDto>>().await?;
 
         Ok(DtoWithHeaders {
             dto: github_repo_list_dto.clone(),
-            headers: response.headers().clone(),
+            headers,
         })
 
         /*        self.api_client.get("").send().and_then(|response| {
@@ -48,8 +53,8 @@ impl GithubRepoRepository {
 }
 
 pub struct DtoWithHeaders<T> {
-    dto: T,
-    headers: HeaderMap,
+    pub dto: T,
+    pub headers: HeaderMap,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +66,10 @@ pub struct GithubRepoDto {
     pub full_name: String,
     #[serde(rename = "ssh_url")]
     pub ssh_url: String,
+    #[serde(rename = "default_branch")]
+    pub default_branch: String,
+    pub archived: bool,
+    pub disabled: bool,
     #[serde(rename = "created_at")]
     pub created_at: DateTime<Utc>,
 }

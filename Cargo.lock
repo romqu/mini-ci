@@ -2121,10 +2121,10 @@ dependencies = [
     "const_fn",
     "libc",
     "standback",
- "stdweb",
- "time-macros",
- "version_check",
- "winapi 0.3.9",
+    "stdweb",
+    "time-macros",
+    "version_check",
+    "winapi 0.3.9",
 ]
 
 [[package]]

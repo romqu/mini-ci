@@ -1,12 +1,14 @@
 use std::sync::{Arc, Mutex};
 
+use actix_service::Service;
 use cmd_lib::{FunChildren, spawn_with_output};
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
 use git2::Repository;
 
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
+use crate::domain::init_service::InitServiceError::CouldNotGetRepos;
 use crate::GithubRepoRepository;
 
 pub struct InitService {
@@ -31,23 +33,32 @@ impl InitService {
         }
     }
 
-    pub fn execute(&mut self) -> Result<(), InitServiceError> {
-        self.clone_repos(&Self::get_deploy_infos())
-            .and_then(|data| self.save_deploy_infos(data))
+    pub async fn execute(&mut self) -> Result<(), InitServiceError> {
+        self.doo().await;
+
+        Ok(())
+
+        /*self.clone_repos(&Self::get_deploy_infos())
+        .and_then(|data| self.save_deploy_infos(data))*/
     }
 
-    fn doo(&self) {
-        self.github_repo_repository.get_repos(1, 100).map(|repos| {});
+    async fn doo(&self) /*-> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> */
+    {
+        let result = self
+            .github_repo_repository
+            .get_repos(1, 100, "owner", "created", "asc")
+            .await
+            .map_err(|_| CouldNotGetRepos);
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
         /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
-             .map_err(|_| CouldNotReadYamlFile)
-             .and_then(|yaml_text| {
-                 serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
-             });
+            .map_err(|_| CouldNotReadYamlFile)
+            .and_then(|yaml_text| {
+                serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
+            });
 
-         spawn_with_output!(bash -c "docker ps");*/
+        spawn_with_output!(bash -c "docker ps");*/
 
         vec![DeployInfo {
             ssh_git_url: "git@github.com:romqu/schimmelhof-api.git",
@@ -130,6 +141,7 @@ pub struct DeployInfo {
 
 #[derive(Debug)]
 pub enum InitServiceError {
+    CouldNotGetRepos,
     CouldNotReadYamlFile,
     CouldNotParseYamlFile,
     CouldNotCloneRepo,

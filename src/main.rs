@@ -10,7 +10,7 @@ use untitled::entrypoint::post_github_push_event_handler::handle_post_github_pus
 
 #[tokio::main]
 async fn main() -> Result<(), InitError> {
-    init_app();
+    init_app().await?;
 
     /*let client = Client::builder().build();
 

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 
+use actix_service::Service;
 use clap::Parser;
 use reqwest::{Client, header};
 use reqwest::header::HeaderValue;
@@ -23,9 +24,10 @@ pub mod di;
 pub mod domain;
 pub mod entrypoint;
 
-pub fn init_app() -> Result<(), InitError> {
-    init_dependencies()
-        .and_then(|mut init_service| init_service.execute().map_err(|_| CouldNotInitApp))
+pub async fn init_app() -> Result<(), InitError> {
+    let mut init_service = init_dependencies()?;
+
+    init_service.execute().await.map_err(|_| CouldNotInitApp)
 }
 
 fn init_dependencies() -> Result<InitService, InitError> {
