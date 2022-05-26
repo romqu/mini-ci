@@ -6,9 +6,12 @@ use futures::{FutureExt, TryFutureExt};
 use git2::Repository;
 
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
+use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::init_service::InitServiceError::CouldNotGetRepos;
+use crate::domain::init_service::InitServiceError::{
+    CouldNotConvertLinkHeaderValue, CouldNotGetRepos,
+};
 use crate::GithubRepoRepository;
 
 pub struct InitService {
@@ -34,7 +37,7 @@ impl InitService {
     }
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
-        self.doo().await;
+        let repos = self.get_repos().await?;
 
         Ok(())
 
@@ -42,14 +45,38 @@ impl InitService {
         .and_then(|data| self.save_deploy_infos(data))*/
     }
 
-    async fn doo(&self) /*-> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> */
-    {
-        let result = self
+    async fn get_repos(&self) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
+        let mut page = 1;
+
+        let initial_repos = self
             .github_repo_repository
+            .get_repos(page, 1, "owner", "created", "asc")
+            .await
+            .map_err(|_| CouldNotGetRepos)?;
+
+        match initial_repos.headers.get("link") {
+            None => {}
+            Some(link_header_value) => {
+                if link_header_value
+                    .to_str()
+                    .map_err(|_| CouldNotConvertLinkHeaderValue)?
+                    .contains("next")
+                {
+                    loop {}
+                    page = page + 1;
+                }
+            }
+        };
+
+        self.github_repo_repository
             .get_repos(1, 100, "owner", "created", "asc")
             .await
-            .map_err(|_| CouldNotGetRepos);
+            .map_err(|_| CouldNotGetRepos)
+
+        // https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/mini-docker.yml
     }
+
+    fn check_repos_for_deploy_file(&self) {}
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
         /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
@@ -145,4 +172,5 @@ pub enum InitServiceError {
     CouldNotReadYamlFile,
     CouldNotParseYamlFile,
     CouldNotCloneRepo,
+    CouldNotConvertLinkHeaderValue,
 }
