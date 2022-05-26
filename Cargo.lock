@@ -509,8 +509,8 @@ dependencies = [
     "cmd_lib_macros",
     "faccess",
     "lazy_static",
- "log",
- "os_pipe",
+    "log",
+    "os_pipe",
 ]
 
 [[package]]
