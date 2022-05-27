@@ -46,7 +46,9 @@ impl InitService {
         .and_then(|data| self.save_deploy_infos(data))*/
     }
 
-    async fn get_repos_for_user(&self) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
+    async fn get_repos_for_user(
+        &self,
+    ) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
         let mut page = 1;
         let mut repos: Vec<GithubRepoDto> = vec![];
 
@@ -54,7 +56,7 @@ impl InitService {
         let initial_headers = initial_repos.headers;
         repos.extend(initial_repos.dto);
 
-        self.get_next_repos(page, &initial_headers).await;
+        self.get_next_repos(page).await;
 
         self.github_repo_repository
             .get_repos(1, 100, "owner", "created", "asc")
@@ -64,26 +66,37 @@ impl InitService {
         // https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/mini-docker.yml
     }
 
-    async fn get_next_repos(&self, mut page: u32, headers: &HeaderMap) {
-        match headers.get("link") {
-            None => {}
-            Some(link_header_value) => {
-                if link_header_value
-                    .to_str()
-                    .map_err(|_| CouldNotConvertLinkHeaderValue)?
-                    .contains("next")
-                {
-                    loop {
-                        self.get_repos(page).await;
-                    }
-                }
-            }
-        };
+
+    async fn get_next_repos(&self, mut page: u32) -> Result<Vec<GithubRepoDto>, InitServiceError> {
+        let mut repos: Vec<GithubRepoDto> = vec![];
+        let mut page: u32 = 2;
+
+        loop {
+            let next_repos = self.get_repos(page).await?;
+            let initial_headers = next_repos.headers;
+            repos.extend(next_repos.dto);
+
+            self.contains_next_link_header()
+        }
+
+        Ok(vec![])
     }
 
-    async fn get_repos(&self, mut page: u32) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
-        self
-            .github_repo_repository
+    fn contains_next_link_header(&self, headers: &HeaderMap) -> Result<bool, InitServiceError> {
+        match headers.get("link") {
+            None => Ok(false),
+            Some(link_header_value) => link_header_value
+                .to_str()
+                .map_err(|_| CouldNotConvertLinkHeaderValue)
+                .map(|link_header| link_header.contains("next")),
+        }
+    }
+
+    async fn get_repos(
+        &self,
+        mut page: u32,
+    ) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
+        self.github_repo_repository
             .get_repos(page, 1, "owner", "created", "asc")
             .await
             .map_err(|_| CouldNotGetRepos)
