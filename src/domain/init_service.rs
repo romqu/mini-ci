@@ -9,9 +9,7 @@ use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::init_service::InitServiceError::{
-    CouldNotConvertLinkHeaderValue, CouldNotGetRepos,
-};
+use crate::domain::init_service::InitServiceError::{CouldNotConvertLinkHeaderValue, CouldNotGetRepos, NoReposFound};
 use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
 
@@ -41,6 +39,7 @@ impl InitService {
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
         let repos = self.get_all_repos_for_user().await?;
+        if repos.is_empty() { return Err(NoReposFound) }
 
         Ok(())
 
@@ -67,13 +66,14 @@ impl InitService {
         Ok(repos)
     }
 
+
     async fn get_repos(
         &self,
         page: u32,
         per_page: u32,
     ) -> Result<DtoWithHeaders<Vec<GithubRepoDto>>, InitServiceError> {
         self.github_repo_repository
-            .get_repos(page, per_page, "owner", "created", "asc")
+            .get_user_repos(page, per_page, "owner", "created", "asc")
             .await
             .map_err(|_| CouldNotGetRepos)
     }
@@ -90,7 +90,15 @@ impl InitService {
         }
     }
 
-    fn check_repos_for_deploy_file(&self) {}
+    fn remove_archived_and_disabled_repos(&self, repos: Vec<GithubRepoDto>) {
+        repos.iter().filter(|repo| repo.archived || repo.disabled).
+    }
+
+    fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) {
+        let github_user_name = repos.first().unwrap().; // should never fail
+        repos.iter().filter(|repo| {})
+        // https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/mini-docker.yml
+    }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
         /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
@@ -183,6 +191,7 @@ pub struct DeployInfo {
 #[derive(Debug)]
 pub enum InitServiceError {
     CouldNotGetRepos,
+    NoReposFound,
     CouldNotReadYamlFile,
     CouldNotParseYamlFile,
     CouldNotCloneRepo,

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use reqwest::Client;
+use reqwest::{Client, Response};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +12,7 @@ impl GithubRepoRepository {
         GithubRepoRepository { api_client }
     }
 
-    pub async fn get_repos(
+    pub async fn get_user_repos(
         &self,
         page: u32,
         per_page: u32,
@@ -50,6 +50,10 @@ impl GithubRepoRepository {
                 })
         */
     }
+
+    pub async fn get_headers(&self, url: &str) -> Result<Response, reqwest::Error> {
+        self.api_client.head(url).send().await
+    }
 }
 
 pub struct DtoWithHeaders<T> {
@@ -64,6 +68,7 @@ pub struct GithubRepoDto {
     pub name: String,
     #[serde(rename = "full_name")]
     pub full_name: String,
+    pub owner: Owner,
     #[serde(rename = "ssh_url")]
     pub ssh_url: String,
     #[serde(rename = "default_branch")]
@@ -72,6 +77,12 @@ pub struct GithubRepoDto {
     pub disabled: bool,
     #[serde(rename = "created_at")]
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Owner {
+    pub login: String,
 }
 
 #[derive(Clone, Copy)]
