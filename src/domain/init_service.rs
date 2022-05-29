@@ -9,11 +9,14 @@ use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
-use crate::domain::init_service::InitServiceError::{CouldNotConvertLinkHeaderValue, CouldNotGetRepos, NoReposFound};
+use crate::domain::init_service::InitServiceError::{
+    CouldNotConvertLinkHeaderValue, CouldNotGetRepos, NoReposFound,
+};
 use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
 
 static REPOS_PER_PAGE: u32 = 100;
+static MINI_DOCKER_FILENAME: &str = "mini-docker.yaml";
 
 pub struct InitService {
     pub github_repo_repository: GithubRepoRepository,
@@ -39,7 +42,9 @@ impl InitService {
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
         let github_repos = self.get_all_repos_for_user().await?;
-        if github_repos.is_empty() { return Err(NoReposFound) }
+        if github_repos.is_empty() {
+            return Err(NoReposFound);
+        }
         let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
 
         Ok(())
@@ -67,7 +72,6 @@ impl InitService {
         Ok(repos)
     }
 
-
     async fn get_repos(
         &self,
         page: u32,
@@ -92,12 +96,35 @@ impl InitService {
     }
 
     fn remove_archived_and_disabled_repos(&self, repos: Vec<GithubRepoDto>) -> Vec<GithubRepoDto> {
-        repos.into_iter().filter(|repo| repo.archived || repo.disabled).collect()
+        repos
+            .into_iter()
+            .filter(|repo| repo.archived || repo.disabled)
+            .collect()
     }
 
-    fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) {
-        let github_user_name = repos.first().unwrap(); // should never fail
-        // https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/mini-docker.yml
+    async fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<GithubRepoDto>, InitServiceError> {
+        let github_user_name = repos.first().unwrap().to_owned().owner.login; // should never fail
+
+        let _ = repos.iter().filter(|repo| async {
+            let repo_name = &repo.name;
+            let default_branch = &repo.default_branch;
+            let url = format!(
+                "https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/{file_name}",
+                user = &github_user_name,
+                repo_name = &repo_name,
+                default_branch = &default_branch,
+                file_name = MINI_DOCKER_FILENAME,
+            );
+
+            match self.github_repo_repository.get_headers(url.as_str()).await {
+                Ok(response) => {
+                    false
+                },
+                Err(_error) => false
+            };
+
+            false
+        });
     }
 
     fn get_deploy_infos() -> Vec<DeployInfo> {
