@@ -38,8 +38,9 @@ impl InitService {
     }
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
-        let repos = self.get_all_repos_for_user().await?;
-        if repos.is_empty() { return Err(NoReposFound) }
+        let github_repos = self.get_all_repos_for_user().await?;
+        if github_repos.is_empty() { return Err(NoReposFound) }
+        let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
 
         Ok(())
 
@@ -90,13 +91,12 @@ impl InitService {
         }
     }
 
-    fn remove_archived_and_disabled_repos(&self, repos: Vec<GithubRepoDto>) {
-        repos.iter().filter(|repo| repo.archived || repo.disabled).
+    fn remove_archived_and_disabled_repos(&self, repos: Vec<GithubRepoDto>) -> Vec<GithubRepoDto> {
+        repos.into_iter().filter(|repo| repo.archived || repo.disabled).collect()
     }
 
     fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) {
-        let github_user_name = repos.first().unwrap().; // should never fail
-        repos.iter().filter(|repo| {})
+        let github_user_name = repos.first().unwrap(); // should never fail
         // https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/mini-docker.yml
     }
 
