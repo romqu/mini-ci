@@ -28,16 +28,16 @@ impl CloneRepoTask {
 
     pub fn execute(
         &self,
-        url: &'static str,
+        url: String,
         into_dir_path: &'static str,
         ssh_passphrase: &String,
         ssh_key_path: &String,
     ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         return self
-            .extract_repo_name(url)
+            .extract_repo_name(url.as_str())
             .and_then(|data_holder_one| self.delete_repo_dir(into_dir_path, data_holder_one))
             .and_then(|data_holder_two| {
-                self.clone_repo(url, data_holder_two, ssh_passphrase, ssh_key_path)
+                self.clone_repo(url.as_str(), data_holder_two, ssh_passphrase, ssh_key_path)
             });
     }
 

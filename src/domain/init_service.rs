@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
-use cmd_lib::{FunChildren, spawn_with_output};
-use futures::{FutureExt, TryFutureExt};
+use cmd_lib::FunChildren;
+use futures::{FutureExt, StreamExt, TryFutureExt};
 use git2::Repository;
 
 use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
@@ -17,6 +17,7 @@ use crate::header::HeaderMap;
 
 static REPOS_PER_PAGE: u32 = 100;
 static MINI_DOCKER_FILENAME: &str = "mini-docker.yaml";
+static GITHUB_CLONE_PATH: &str = "/tmp";
 
 pub struct InitService {
     pub github_repo_repository: GithubRepoRepository,
@@ -42,10 +43,14 @@ impl InitService {
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
         let github_repos = self.get_all_repos_for_user().await?;
-        if github_repos.is_empty() {
+        let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
+
+        if sanitized_github_repos.is_empty() {
             return Err(NoReposFound);
         }
-        let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
+        let github_repos_with_deploy_file = self
+            .filter_repos_by_deploy_file(sanitized_github_repos)
+            .await;
 
         Ok(())
 
@@ -69,7 +74,11 @@ impl InitService {
             page = page + 1;
         }
 
-        Ok(repos)
+        if !repos.is_empty() {
+            Ok(repos)
+        } else {
+            Err(NoReposFound)
+        }
     }
 
     async fn get_repos(
@@ -98,14 +107,15 @@ impl InitService {
     fn remove_archived_and_disabled_repos(&self, repos: Vec<GithubRepoDto>) -> Vec<GithubRepoDto> {
         repos
             .into_iter()
-            .filter(|repo| repo.archived || repo.disabled)
+            .filter(|repo| !repo.archived || !repo.disabled)
             .collect()
     }
 
-    async fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<GithubRepoDto>, InitServiceError> {
+    async fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) -> Vec<GithubRepoDto> {
         let github_user_name = repos.first().unwrap().to_owned().owner.login; // should never fail
+        let mut filtered_repos: Vec<GithubRepoDto> = vec![];
 
-        let _ = repos.iter().filter(|repo| async {
+        for repo in repos {
             let repo_name = &repo.name;
             let default_branch = &repo.default_branch;
             let url = format!(
@@ -118,18 +128,40 @@ impl InitService {
 
             match self.github_repo_repository.get_headers(url.as_str()).await {
                 Ok(response) => {
-                    false
+                    if response.status().is_success() {
+                        filtered_repos.push(repo)
+                    }
+                }
+                Err(_error) => {}
+            };
+        }
+
+        filtered_repos
+
+        /*let a = stream::iter(repos.iter()).filter(|repo| async move {
+            let repo_name = &repo.name;
+            let default_branch = &repo.default_branch;
+            let url = format!(
+                "https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/{file_name}",
+                user = &github_user_name,
+                repo_name = &repo_name,
+                default_branch = &default_branch,
+                file_name = MINI_DOCKER_FILENAME,
+            );
+
+            match self.github_repo_repository.get_headers(url.as_str()).await {
+                Ok(response) => {
+                    true
                 },
                 Err(_error) => false
-            };
-
-            false
-        });
+            }
+        });*/
     }
 
-    fn get_deploy_infos() -> Vec<DeployInfo> {
+    /*    fn get_deploy_infos() -> Vec<DeployInfo> {
         /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
-            .map_err(|_| CouldNotReadYamlFile)
+            .map_err(|_| CouldNotReadYamlFile)DE
+
             .and_then(|yaml_text| {
                 serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
             });
@@ -143,6 +175,35 @@ impl InitService {
                 |path: String| spawn_with_output!(docker-compose -f ${path}/docker-compose.yml up --force-recreate --no-deps -d api),
             ],
         }]
+    }*/
+
+    fn clone_repos_1(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<TempDataHolderOne1>, InitServiceError> {
+        repos
+            .into_iter()
+            .map(|repo| {
+                self.clone_repo_1(repo.ssh_url.clone())
+                    .map(|task_result| {
+                        TempDataHolderOne1 {
+                            repo_path: task_result.repo_path,
+                            git_repository: task_result.git_repository,
+                            github_repo: repo,
+                        }
+                    })
+                    .map_err(|_| InitServiceError::CouldNotCloneRepo)
+            })
+            .collect()
+    }
+
+    fn clone_repo_1(
+        &self,
+        ssh_git_url: String,
+    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
+        self.clone_repo_task.execute(
+            ssh_git_url,
+            GITHUB_CLONE_PATH,
+            &self.args.ssh_passphrase,
+            &self.args.ssh_key_path,
+        )
     }
 
     pub fn clone_repos(
@@ -172,7 +233,7 @@ impl InitService {
         deploy_info: &DeployInfo,
     ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         self.clone_repo_task.execute(
-            deploy_info.ssh_git_url,
+            deploy_info.ssh_git_url.to_string(),
             "/tmp",
             &args.ssh_passphrase,
             &args.ssh_key_path,
@@ -201,6 +262,12 @@ impl InitService {
 
         Ok({})
     }
+}
+
+pub struct TempDataHolderOne1 {
+    pub github_repo: GithubRepoDto,
+    pub repo_path: String,
+    pub git_repository: Repository,
 }
 
 pub struct TempDataHolderOne {
