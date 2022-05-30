@@ -52,10 +52,9 @@ impl InitService {
             .filter_repos_by_deploy_file(sanitized_github_repos)
             .await;
 
-        Ok(())
+        let a = self.clone_repos(github_repos_with_deploy_file)?;
 
-        /*self.clone_repos(&Self::get_deploy_infos())
-        .and_then(|data| self.save_deploy_infos(data))*/
+        Ok(())
     }
 
     async fn get_all_repos_for_user(&self) -> Result<Vec<GithubRepoDto>, InitServiceError> {
@@ -111,6 +110,7 @@ impl InitService {
             .collect()
     }
 
+    // TODO: parallel (?)
     async fn filter_repos_by_deploy_file(&self, repos: Vec<GithubRepoDto>) -> Vec<GithubRepoDto> {
         let github_user_name = repos.first().unwrap().to_owned().owner.login; // should never fail
         let mut filtered_repos: Vec<GithubRepoDto> = vec![];
@@ -177,13 +177,14 @@ impl InitService {
         }]
     }*/
 
-    fn clone_repos_1(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<TempDataHolderOne1>, InitServiceError> {
+    // TODO: parallel (?)
+    fn clone_repos(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<TempDataHolderOne>, InitServiceError> {
         repos
             .into_iter()
             .map(|repo| {
-                self.clone_repo_1(repo.ssh_url.clone())
+                self.clone_repo(repo.ssh_url.clone())
                     .map(|task_result| {
-                        TempDataHolderOne1 {
+                        TempDataHolderOne {
                             repo_path: task_result.repo_path,
                             git_repository: task_result.git_repository,
                             github_repo: repo,
@@ -194,7 +195,7 @@ impl InitService {
             .collect()
     }
 
-    fn clone_repo_1(
+    fn clone_repo(
         &self,
         ssh_git_url: String,
     ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
@@ -206,39 +207,7 @@ impl InitService {
         )
     }
 
-    pub fn clone_repos(
-        &self,
-        deploy_infos: &Vec<DeployInfo>,
-    ) -> Result<Vec<TempDataHolderOne>, InitServiceError> {
-        deploy_infos
-            .iter()
-            .map(|deploy_info| {
-                self.clone_repo(&self.args, deploy_info)
-                    .map(|task_result| {
-                        TempDataHolderOne {
-                            ssh_git_url: deploy_info.ssh_git_url,
-                            command_builders: deploy_info.command_builders.clone(),
-                            repo_path: task_result.repo_path,
-                            git_repository: task_result.git_repository,
-                        }
-                    })
-                    .map_err(|_| InitServiceError::CouldNotCloneRepo)
-            })
-            .collect()
-    }
-
-    fn clone_repo(
-        &self,
-        args: &StartupArgs,
-        deploy_info: &DeployInfo,
-    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
-        self.clone_repo_task.execute(
-            deploy_info.ssh_git_url.to_string(),
-            "/tmp",
-            &args.ssh_passphrase,
-            &args.ssh_key_path,
-        )
-    }
+    fn parse_deploy_commands(&self, repos: Vec<GithubRepoDto>) {}
 
     fn save_deploy_infos(
         &mut self,
@@ -264,7 +233,7 @@ impl InitService {
     }
 }
 
-pub struct TempDataHolderOne1 {
+pub struct TempDataHolderOne {
     pub github_repo: GithubRepoDto,
     pub repo_path: String,
     pub git_repository: Repository,
