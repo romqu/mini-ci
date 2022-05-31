@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
-use cmd_lib::FunChildren;
+use cmd_lib::{FunChildren, spawn_with_output};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use git2::Repository;
 
-use crate::data::deploy_info_repository::{DeployInfoEntity, DeployInfoRepository};
+use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
@@ -42,6 +42,7 @@ impl InitService {
     }
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
+        let a = spawn_with_output!(bash -c "docker ps");
         let github_repos = self.get_all_repos_for_user().await?;
         let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
 
@@ -57,6 +58,7 @@ impl InitService {
         Ok(())
     }
 
+    // TODO: parallel (?)
     async fn get_all_repos_for_user(&self) -> Result<Vec<GithubRepoDto>, InitServiceError> {
         let mut repos: Vec<GithubRepoDto> = vec![];
         let mut page: u32 = 1;
@@ -209,39 +211,32 @@ impl InitService {
 
     fn parse_deploy_commands(&self, repos: Vec<GithubRepoDto>) {}
 
-    fn save_deploy_infos(
-        &mut self,
-        data_vec: Vec<TempDataHolderOne>,
-    ) -> Result<(), InitServiceError> {
-        let deploy_infos = data_vec.into_iter().map(|data| {
-            DeployInfoEntity {
-                ssh_git_url: data.ssh_git_url,
-                command_builders: data.command_builders,
-                repo_path: data.repo_path,
-                git_repository: data.git_repository,
+    /*    fn save_deploy_infos(
+            &mut self,
+            data_vec: Vec<TempDataHolderOne>,
+        ) -> Result<(), InitServiceError> {
+            let deploy_infos = data_vec.into_iter().map(|data| {
+                DeployInfoEntity {
+                    ssh_git_url: data.ssh_git_url,
+                    command_builders: data.command_builders,
+                    repo_path: data.repo_path,
+                    git_repository: data.git_repository,
+                }
+            });
+
+            for deploy_info in deploy_infos {
+                self.deploy_info_repo
+                    .lock()
+                    .unwrap()
+                    .save(deploy_info.ssh_git_url.to_string(), deploy_info);
             }
-        });
 
-        for deploy_info in deploy_infos {
-            self.deploy_info_repo
-                .lock()
-                .unwrap()
-                .save(deploy_info.ssh_git_url.to_string(), deploy_info);
-        }
-
-        Ok({})
-    }
+            Ok({})
+        }*/
 }
 
 pub struct TempDataHolderOne {
     pub github_repo: GithubRepoDto,
-    pub repo_path: String,
-    pub git_repository: Repository,
-}
-
-pub struct TempDataHolderOne {
-    pub ssh_git_url: &'static str,
-    pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
     pub repo_path: String,
     pub git_repository: Repository,
 }

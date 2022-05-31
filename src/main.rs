@@ -3,41 +3,39 @@
 extern crate lazy_static;
 extern crate regex;
 
+use std::fmt::Debug;
+
 use actix_web::{App, HttpServer, web};
+use git2::{ObjectType, Repository, Tree};
 
 use untitled::{init_app, InitError};
 use untitled::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
 
 #[tokio::main]
 async fn main() -> Result<(), InitError> {
+    let repo = Repository::open("/home/roman/projects/private/mini-ci").unwrap();
+    let object = repo.revparse_single("master").unwrap();
+
+
+    match object.kind() {
+        Some(ObjectType::Commit) => {
+            show_tree(&object.as_commit().unwrap().tree().unwrap());
+        }
+        _ => {}
+    }
+
+
     init_app().await?;
 
-    /*let client = Client::builder().build();
-
-    let github_user_info = client
-        .get("https://api.github.com/user")
-        .header("User-Agent", "request")
-        .header("accept", "*")
-        .bearer_auth("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")
-        .send()
-        .await
-        .unwrap()
-        .json::<GithubUserInfo>()
-        .await
-        .unwrap();
-
-    println!("{}", github_user_info.name);*/
-
-    /*let a = reqwest::get("https://raw.githubusercontent.com/romqu/ubuntu-config-scripts/master/README.md?token=GHSAT0AAAAAABR6TMBHGSVKHW4HAVLNYJIYQZGTZA")
-    .await.unwrap().status();*/
-
-    /*    match init_app() {
-        Ok(_) => start_app().await.map_err(|_| CouldNotStartApp),
-        Err(err) => Err(err),
-    }
-*/
-
     Ok({})
+}
+
+fn show_tree(tree: &Tree) {
+    for entry in tree.iter() {
+        if entry.name().unwrap() == "deploy.sh" {
+            println!("{}", entry.id());
+        }
+    }
 }
 
 pub async fn start_app() -> std::io::Result<()> {
