@@ -32,3 +32,4 @@ DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker-compose up \
   --build --force-recreate --no-deps -d ci
 
 rm .env
+rm .ds
