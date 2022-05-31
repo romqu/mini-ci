@@ -2,7 +2,6 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
-use cmd_lib::spawn_with_output;
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use git2::{ObjectType, Repository};
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
 
 static REPOS_PER_PAGE: u32 = 100;
-static DOCKER_DEPLOY_FILENAME: &str = "docker-deploy.yaml";
+static DOCKER_DEPLOY_FILENAME: &str = "docker-deploy.yml";
 static GITHUB_CLONE_PATH: &str = "/tmp";
 
 pub struct InitService {
@@ -44,7 +43,6 @@ impl InitService {
     }
 
     pub async fn execute(&mut self) -> Result<(), InitServiceError> {
-        let a = spawn_with_output!(bash -c "docker ps");
         let github_repos = self.get_all_repos_for_user().await?;
         let sanitized_github_repos = self.remove_archived_and_disabled_repos(github_repos);
 
@@ -227,17 +225,17 @@ impl InitService {
 
     fn parse_deploy_commands(&self, repo_paths: &Vec<&String>) {
         repo_paths.iter().map(|repo_path| {
-            format!("{}", repo_path);
-            repo_path
-        });
+            let file_path = format!("{}/{}", repo_path, DOCKER_DEPLOY_FILENAME);
+            self.parse_deploy_command(file_path)
+        }).next();
     }
 
-    fn parse_deploy_command(&self, file_path: &'static str) {
-        let contents = fs::read_to_string(file_path)
+    fn parse_deploy_command(&self, file_path: String) -> Result<DeployInfo, InitServiceError> {
+        fs::read_to_string(file_path)
             .map_err(|_| CouldNotReadYamlFile)
             .and_then(|yaml_text| {
                 serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
-            });
+            })
     }
 
     /*    fn save_deploy_infos(
