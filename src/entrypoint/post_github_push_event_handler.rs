@@ -12,7 +12,7 @@ pub async fn handle_post_github_push_event(json: Json<GithubPushEventDto>) -> Ht
     {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
-            println!("{}", err);
+            // println!("{}", err);
             HttpResponse::BadRequest().finish()
         }
     }

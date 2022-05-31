@@ -6,36 +6,13 @@ extern crate regex;
 use std::fmt::Debug;
 
 use actix_web::{App, HttpServer, web};
-use git2::{ObjectType, Repository, Tree};
 
 use untitled::{init_app, InitError};
 use untitled::entrypoint::post_github_push_event_handler::handle_post_github_push_event;
 
 #[tokio::main]
 async fn main() -> Result<(), InitError> {
-    let repo = Repository::open("/home/roman/projects/private/mini-ci").unwrap();
-    let object = repo.revparse_single("master").unwrap();
-
-
-    match object.kind() {
-        Some(ObjectType::Commit) => {
-            show_tree(&object.as_commit().unwrap().tree().unwrap());
-        }
-        _ => {}
-    }
-
-
-    init_app().await?;
-
-    Ok({})
-}
-
-fn show_tree(tree: &Tree) {
-    for entry in tree.iter() {
-        if entry.name().unwrap() == "deploy.sh" {
-            println!("{}", entry.id());
-        }
-    }
+    init_app().await
 }
 
 pub async fn start_app() -> std::io::Result<()> {
@@ -49,4 +26,3 @@ pub async fn start_app() -> std::io::Result<()> {
         .run()
         .await
 }
-

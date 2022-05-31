@@ -60,7 +60,10 @@ fn init_github_api_client(github_token: String) -> Result<Client, InitError> {
             let mut default_headers = header::HeaderMap::new();
 
             default_headers.insert(header::USER_AGENT, HeaderValue::from_static("reqwest"));
-            default_headers.insert(header::ACCEPT, HeaderValue::from_static("application/vnd.github.v3+json"));
+            default_headers.insert(
+                header::ACCEPT,
+                HeaderValue::from_static("application/vnd.github.v3+json"),
+            );
             default_headers.insert(header::AUTHORIZATION, bearer_header);
 
             Client::builder()

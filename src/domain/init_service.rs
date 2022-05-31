@@ -1,22 +1,24 @@
+use std::fs;
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
-use cmd_lib::{FunChildren, spawn_with_output};
+use cmd_lib::spawn_with_output;
 use futures::{FutureExt, StreamExt, TryFutureExt};
-use git2::Repository;
+use git2::{ObjectType, Repository};
+use serde::{Deserialize, Serialize};
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 use crate::domain::init_service::InitServiceError::{
-    CouldNotConvertLinkHeaderValue, CouldNotGetRepos, NoReposFound,
+    CouldNotConvertLinkHeaderValue, CouldNotGetRepos, CouldNotReadYamlFile, NoReposFound,
 };
 use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
 
 static REPOS_PER_PAGE: u32 = 100;
-static MINI_DOCKER_FILENAME: &str = "mini-docker.yaml";
+static DOCKER_DEPLOY_FILENAME: &str = "docker-deploy.yaml";
 static GITHUB_CLONE_PATH: &str = "/tmp";
 
 pub struct InitService {
@@ -49,13 +51,46 @@ impl InitService {
         if sanitized_github_repos.is_empty() {
             return Err(NoReposFound);
         }
+
         let github_repos_with_deploy_file = self
             .filter_repos_by_deploy_file(sanitized_github_repos)
             .await;
 
-        let a = self.clone_repos(github_repos_with_deploy_file)?;
+        let temp_data_holders = self.clone_repos(github_repos_with_deploy_file)?;
+
+        self.parse_deploy_commands(
+            &temp_data_holders
+                .iter()
+                .map(|data_holder| &data_holder.repo_path)
+                .collect(),
+        );
+
+        Self::get_deploy_file_git_id(temp_data_holders);
 
         Ok(())
+    }
+
+    fn get_deploy_file_git_id(a: Vec<TempDataHolderOne>) {
+        for x in a {
+            let object = x
+                .git_repository
+                .revparse_single(x.github_repo.default_branch.as_str())
+                .unwrap();
+
+            object.as_commit().unwrap().tree().unwrap();
+
+            match object.kind() {
+                Some(ObjectType::Commit) => {
+                    let tree = &object.as_commit().unwrap().tree().unwrap();
+                    for entry in tree.iter() {
+                        if entry.name().unwrap() == "deploy.sh" {
+                            println!("{}", entry.id());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     // TODO: parallel (?)
@@ -125,7 +160,7 @@ impl InitService {
                 user = &github_user_name,
                 repo_name = &repo_name,
                 default_branch = &default_branch,
-                file_name = MINI_DOCKER_FILENAME,
+                file_name = DOCKER_DEPLOY_FILENAME,
             );
 
             match self.github_repo_repository.get_headers(url.as_str()).await {
@@ -139,29 +174,10 @@ impl InitService {
         }
 
         filtered_repos
-
-        /*let a = stream::iter(repos.iter()).filter(|repo| async move {
-            let repo_name = &repo.name;
-            let default_branch = &repo.default_branch;
-            let url = format!(
-                "https://raw.githubusercontent.com/{user}/{repo_name}/{default_branch}/{file_name}",
-                user = &github_user_name,
-                repo_name = &repo_name,
-                default_branch = &default_branch,
-                file_name = MINI_DOCKER_FILENAME,
-            );
-
-            match self.github_repo_repository.get_headers(url.as_str()).await {
-                Ok(response) => {
-                    true
-                },
-                Err(_error) => false
-            }
-        });*/
     }
 
     /*    fn get_deploy_infos() -> Vec<DeployInfo> {
-        /* let contents = fs::read_to_string("deploy-schimmelhof.yml")
+        /* let contents = fs::read_to_string("docker-deploy.yml")
             .map_err(|_| CouldNotReadYamlFile)DE
 
             .and_then(|yaml_text| {
@@ -180,7 +196,10 @@ impl InitService {
     }*/
 
     // TODO: parallel (?)
-    fn clone_repos(&self, repos: Vec<GithubRepoDto>) -> Result<Vec<TempDataHolderOne>, InitServiceError> {
+    fn clone_repos(
+        &self,
+        repos: Vec<GithubRepoDto>,
+    ) -> Result<Vec<TempDataHolderOne>, InitServiceError> {
         repos
             .into_iter()
             .map(|repo| {
@@ -197,10 +216,7 @@ impl InitService {
             .collect()
     }
 
-    fn clone_repo(
-        &self,
-        ssh_git_url: String,
-    ) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
+    fn clone_repo(&self, ssh_git_url: String) -> Result<CloneRepoTaskResult, CloneRepoTaskError> {
         self.clone_repo_task.execute(
             ssh_git_url,
             GITHUB_CLONE_PATH,
@@ -209,30 +225,43 @@ impl InitService {
         )
     }
 
-    fn parse_deploy_commands(&self, repos: Vec<GithubRepoDto>) {}
+    fn parse_deploy_commands(&self, repo_paths: &Vec<&String>) {
+        repo_paths.iter().map(|repo_path| {
+            format!("{}", repo_path);
+            repo_path
+        });
+    }
+
+    fn parse_deploy_command(&self, file_path: &'static str) {
+        let contents = fs::read_to_string(file_path)
+            .map_err(|_| CouldNotReadYamlFile)
+            .and_then(|yaml_text| {
+                serde_yaml::from_str::<DeployInfo>(&yaml_text).map_err(|_| CouldNotReadYamlFile)
+            });
+    }
 
     /*    fn save_deploy_infos(
-            &mut self,
-            data_vec: Vec<TempDataHolderOne>,
-        ) -> Result<(), InitServiceError> {
-            let deploy_infos = data_vec.into_iter().map(|data| {
-                DeployInfoEntity {
-                    ssh_git_url: data.ssh_git_url,
-                    command_builders: data.command_builders,
-                    repo_path: data.repo_path,
-                    git_repository: data.git_repository,
-                }
-            });
-
-            for deploy_info in deploy_infos {
-                self.deploy_info_repo
-                    .lock()
-                    .unwrap()
-                    .save(deploy_info.ssh_git_url.to_string(), deploy_info);
+        &mut self,
+        data_vec: Vec<TempDataHolderOne>,
+    ) -> Result<(), InitServiceError> {
+        let deploy_infos = data_vec.into_iter().map(|data| {
+            DeployInfoEntity {
+                ssh_git_url: data.ssh_git_url,
+                command_builders: data.command_builders,
+                repo_path: data.repo_path,
+                git_repository: data.git_repository,
             }
+        });
 
-            Ok({})
-        }*/
+        for deploy_info in deploy_infos {
+            self.deploy_info_repo
+                .lock()
+                .unwrap()
+                .save(deploy_info.ssh_git_url.to_string(), deploy_info);
+        }
+
+        Ok({})
+    }*/
 }
 
 pub struct TempDataHolderOne {
@@ -241,9 +270,15 @@ pub struct TempDataHolderOne {
     pub git_repository: Repository,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeployInfo {
-    pub ssh_git_url: &'static str,
-    pub command_builders: Vec<fn(String) -> std::io::Result<FunChildren>>,
+    pub branches: Vec<Branch>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Branch {
+    pub name: String,
+    pub commands: Vec<String>,
 }
 
 #[derive(Debug)]
