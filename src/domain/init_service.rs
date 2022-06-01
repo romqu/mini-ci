@@ -11,7 +11,8 @@ use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 use crate::domain::init_service::InitServiceError::{
-    CouldNotConvertLinkHeaderValue, CouldNotGetRepos, CouldNotReadYamlFile, NoReposFound,
+    CouldNotConvertLinkHeaderValue, CouldNotGetGitFileId, CouldNotGetRepos, CouldNotReadYamlFile,
+    NoReposFound,
 };
 use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
@@ -54,28 +55,35 @@ impl InitService {
             .filter_repos_by_deploy_file(sanitized_github_repos)
             .await;
 
-        let temp_data_holders = self.clone_repos(github_repos_with_deploy_file)?;
+        let temp_data_one_holders = self.clone_repos(github_repos_with_deploy_file)?;
 
-        self.parse_deploy_commands(
-            &temp_data_holders
-                .iter()
-                .map(|data_holder| &data_holder.repo_path)
-                .collect(),
-        );
+        let temp_data_two_holders = self.get_deploy_info(temp_data_one_holders)?;
 
-        Self::get_deploy_file_git_id(temp_data_holders);
+        self.get_deploy_file_git_id(temp_data_two_holders);
 
         Ok(())
     }
 
-    fn get_deploy_file_git_id(a: Vec<TempDataHolderOne>) {
-        for x in a {
+    fn get_deploy_file_git_id(&self, temps: Vec<TempDataHolderTwo>) {
+        temps.iter().map(|temp| {
+            temp.git_repository
+                .revparse_single(temp.github_repo.default_branch.as_str())
+                .map_err(|_| CouldNotGetGitFileId)
+                .and_then(|object| object.as_commit().ok_or(CouldNotGetGitFileId))
+                .and_then(|commit| commit.tree().map_err(|_| CouldNotGetGitFileId))
+                .and_then(|tree| {
+                    tree.iter()
+                        .find(|entry| entry.name().unwrap_or("") == DOCKER_DEPLOY_FILENAME)
+                        .and_then(|entry| entry.name())
+                        .ok_or(CouldNotGetGitFileId)
+                })
+        });
+
+        for x in temps {
             let object = x
                 .git_repository
                 .revparse_single(x.github_repo.default_branch.as_str())
                 .unwrap();
-
-            object.as_commit().unwrap().tree().unwrap();
 
             match object.kind() {
                 Some(ObjectType::Commit) => {
@@ -223,14 +231,31 @@ impl InitService {
         )
     }
 
-    fn parse_deploy_commands(&self, repo_paths: &Vec<&String>) {
-        repo_paths.iter().map(|repo_path| {
-            let file_path = format!("{}/{}", repo_path, DOCKER_DEPLOY_FILENAME);
-            self.parse_deploy_command(file_path)
-        }).next();
+    fn get_deploy_info(
+        &self,
+        temps: Vec<TempDataHolderOne>,
+    ) -> Result<Vec<TempDataHolderTwo>, InitServiceError> {
+        temps
+            .into_iter()
+            .map(|data_holder| {
+                let file_path = format!("{}/{}", data_holder.repo_path, DOCKER_DEPLOY_FILENAME);
+                self.parse_deploy_info_from_file(file_path)
+                    .map(|deploy_info| {
+                        TempDataHolderTwo {
+                            github_repo: data_holder.github_repo,
+                            repo_path: data_holder.repo_path,
+                            git_repository: data_holder.git_repository,
+                            deploy_info,
+                        }
+                    })
+            })
+            .collect()
     }
 
-    fn parse_deploy_command(&self, file_path: String) -> Result<DeployInfo, InitServiceError> {
+    fn parse_deploy_info_from_file(
+        &self,
+        file_path: String,
+    ) -> Result<DeployInfo, InitServiceError> {
         fs::read_to_string(file_path)
             .map_err(|_| CouldNotReadYamlFile)
             .and_then(|yaml_text| {
@@ -268,6 +293,13 @@ pub struct TempDataHolderOne {
     pub git_repository: Repository,
 }
 
+pub struct TempDataHolderTwo {
+    pub github_repo: GithubRepoDto,
+    pub repo_path: String,
+    pub git_repository: Repository,
+    pub deploy_info: DeployInfo,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeployInfo {
     pub branches: Vec<Branch>,
@@ -287,4 +319,5 @@ pub enum InitServiceError {
     CouldNotParseYamlFile,
     CouldNotCloneRepo,
     CouldNotConvertLinkHeaderValue,
+    CouldNotGetGitFileId,
 }
