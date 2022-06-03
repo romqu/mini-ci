@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
 use futures::{FutureExt, StreamExt, TryFutureExt};
-use git2::{ObjectType, Repository};
+use git2::{Object, Repository};
 use serde::{Deserialize, Serialize};
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
@@ -59,45 +59,11 @@ impl InitService {
 
         let temp_data_two_holders = self.get_deploy_info(temp_data_one_holders)?;
 
-        self.get_deploy_file_git_id(temp_data_two_holders);
+        let temp_data_three_holders = self.get_deploy_file_git_id(temp_data_two_holders);
 
         Ok(())
     }
 
-    fn get_deploy_file_git_id(&self, temps: Vec<TempDataHolderTwo>) {
-        temps.iter().map(|temp| {
-            temp.git_repository
-                .revparse_single(temp.github_repo.default_branch.as_str())
-                .map_err(|_| CouldNotGetGitFileId)
-                .and_then(|object| object.as_commit().ok_or(CouldNotGetGitFileId))
-                .and_then(|commit| commit.tree().map_err(|_| CouldNotGetGitFileId))
-                .and_then(|tree| {
-                    tree.iter()
-                        .find(|entry| entry.name().unwrap_or("") == DOCKER_DEPLOY_FILENAME)
-                        .and_then(|entry| entry.name())
-                        .ok_or(CouldNotGetGitFileId)
-                })
-        });
-
-        for x in temps {
-            let object = x
-                .git_repository
-                .revparse_single(x.github_repo.default_branch.as_str())
-                .unwrap();
-
-            match object.kind() {
-                Some(ObjectType::Commit) => {
-                    let tree = &object.as_commit().unwrap().tree().unwrap();
-                    for entry in tree.iter() {
-                        if entry.name().unwrap() == "deploy.sh" {
-                            println!("{}", entry.id());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
 
     // TODO: parallel (?)
     async fn get_all_repos_for_user(&self) -> Result<Vec<GithubRepoDto>, InitServiceError> {
@@ -263,6 +229,40 @@ impl InitService {
             })
     }
 
+    fn get_deploy_file_git_id(
+        &self,
+        temps: Vec<TempDataHolderTwo>,
+    ) -> Result<Vec<TempDataHolderThree>, InitServiceError> {
+        temps
+            .into_iter()
+            .map(|temp| {
+                temp.git_repository
+                    .revparse_single(temp.github_repo.default_branch.as_str())
+                    .map_err(|_| CouldNotGetGitFileId)
+                    .and_then(|object| self.get_file_id(object))
+                    .map(|file_id| {
+                        TempDataHolderThree {
+                            github_repo: temp.github_repo,
+                            repo_path: temp.repo_path,
+                            git_repository: temp.git_repository,
+                            deploy_info: temp.deploy_info,
+                            deploy_file_git_id: file_id.to_string(),
+                        }
+                    })
+            })
+            .collect()
+    }
+
+    fn get_file_id(&self, object: Object) -> Result<String, InitServiceError> {
+        let commit = object.as_commit().ok_or(CouldNotGetGitFileId)?;
+        let tree = commit.tree().map_err(|_| CouldNotGetGitFileId)?;
+
+        tree.iter()
+            .find(|entry| entry.name().unwrap_or("") == DOCKER_DEPLOY_FILENAME)
+            .map(|entry| entry.id().to_string())
+            .ok_or(CouldNotGetGitFileId)
+    }
+
     /*    fn save_deploy_infos(
         &mut self,
         data_vec: Vec<TempDataHolderOne>,
@@ -298,6 +298,14 @@ pub struct TempDataHolderTwo {
     pub repo_path: String,
     pub git_repository: Repository,
     pub deploy_info: DeployInfo,
+}
+
+pub struct TempDataHolderThree {
+    pub github_repo: GithubRepoDto,
+    pub repo_path: String,
+    pub git_repository: Repository,
+    pub deploy_info: DeployInfo,
+    pub deploy_file_git_id: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
