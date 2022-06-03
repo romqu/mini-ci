@@ -12,6 +12,7 @@ use reqwest::header::HeaderValue;
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::GithubRepoRepository;
+use crate::data::github_webhook_repository::GithubWebhookRepository;
 use crate::di::singletons::DEPLOY_SERVICE_CELL;
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::CloneRepoTask;
@@ -37,7 +38,9 @@ fn init_dependencies() -> Result<InitService, InitError> {
     init_github_api_client(github_token.to_string()).and_then(|api_client| {
         let deploy_info_repository =
             Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
-        let github_repo_repository = GithubRepoRepository::new(api_client);
+        let a = Arc::new(Mutex::new(api_client));
+        let github_repo_repository = GithubRepoRepository::new(a.clone());
+        let github_repo_repository = GithubWebhookRepository::new(api_client);
         let clone_repo_task = CloneRepoTask::new();
         let init_service = InitService::new(
             github_repo_repository,

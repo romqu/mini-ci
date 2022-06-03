@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
+use crate::data::github_webhook_repository::GithubWebhookRepository;
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 use crate::domain::init_service::InitServiceError::{
@@ -23,6 +24,7 @@ static GITHUB_CLONE_PATH: &str = "/tmp";
 
 pub struct InitService {
     pub github_repo_repository: GithubRepoRepository,
+    pub github_webhook_repository: GithubWebhookRepository,
     pub deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
     pub clone_repo_task: CloneRepoTask,
     pub args: StartupArgs,
@@ -31,12 +33,14 @@ pub struct InitService {
 impl InitService {
     pub fn new(
         github_repo_repository: GithubRepoRepository,
+        github_webhook_repository: GithubWebhookRepository,
         deploy_info_repo: Arc<Mutex<DeployInfoRepository>>,
         clone_repo_task: CloneRepoTask,
         args: StartupArgs,
     ) -> InitService {
         InitService {
             github_repo_repository,
+            github_webhook_repository,
             deploy_info_repo,
             clone_repo_task,
             args,
@@ -262,6 +266,8 @@ impl InitService {
             .map(|entry| entry.id().to_string())
             .ok_or(CouldNotGetGitFileId)
     }
+
+    fn create_github_webhooks(&self, data_holders: Vec<TempDataHolderThree>) {}
 
     /*    fn save_deploy_infos(
         &mut self,
