@@ -1,19 +1,16 @@
 use std::sync::{Arc, Mutex};
 
-use actix_service::Service;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
 
-use crate::data::github_webhook_repository::ApiCallError::{DtoToJsonStringError, JsonToDtoError, SendError};
+use crate::data::api_call_delegate::{ApiCallDelegate, ApiCallError};
 
 pub struct GithubWebhookRepository {
-    api_client: Arc<Mutex<Client>>,
+    api_delegate: Arc<Mutex<ApiCallDelegate>>,
 }
 
 impl GithubWebhookRepository {
-    pub fn new(api_client: Arc<Mutex<Client>>) -> GithubWebhookRepository {
-        GithubWebhookRepository { api_client }
+    pub fn new(api_delegate: Arc<Mutex<ApiCallDelegate>>) -> GithubWebhookRepository {
+        GithubWebhookRepository { api_delegate }
     }
 
     pub async fn create_webhook(
@@ -28,40 +25,8 @@ impl GithubWebhookRepository {
             repo = repo
         );
 
-        self.execute_post_call(url, &dto).await
+        self.api_delegate.lock().unwrap().execute_post_call(url, &dto).await
     }
-
-    // static string causes hidden lifetime
-    async fn execute_post_call<T>(&self, url: String, dto: &T) -> Result<Box<T>, ApiCallError>
-        where
-            T: ?Sized + Serialize + DeserializeOwned,
-    {
-        let body = serde_json::to_string(&dto).map_err(|_| DtoToJsonStringError)?;
-
-        self.api_client
-            .lock()
-            .unwrap()
-            .post(url)
-            .body(body)
-            .send()
-            .await
-            .map_err(|err| {
-                println!("{}", err);
-                SendError
-            })?
-            .json::<Box<T>>()
-            .await
-            .map_err(|err| {
-                println!("{}", err);
-                JsonToDtoError
-            })
-    }
-}
-
-pub enum ApiCallError {
-    DtoToJsonStringError,
-    SendError,
-    JsonToDtoError,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

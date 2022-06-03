@@ -10,6 +10,7 @@ use clap::Parser;
 use reqwest::{Client, header};
 use reqwest::header::HeaderValue;
 
+use crate::data::api_call_delegate::ApiCallDelegate;
 use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::GithubRepoRepository;
 use crate::data::github_webhook_repository::GithubWebhookRepository;
@@ -36,11 +37,12 @@ fn init_dependencies() -> Result<InitService, InitError> {
     let github_token = env!("GITHUB_TOKEN");
 
     init_github_api_client(github_token.to_string()).and_then(|api_client| {
+        let api_client = Arc::new(Mutex::new(api_client));
+        let api_call_delegate = Arc::new(Mutex::new(ApiCallDelegate::new(api_client.clone())));
         let deploy_info_repository =
             Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
-        let api_client = Arc::new(Mutex::new(api_client));
         let github_repo_repository = GithubRepoRepository::new(api_client.clone());
-        let github_webhook_repository = GithubWebhookRepository::new(api_client.clone());
+        let github_webhook_repository = GithubWebhookRepository::new(api_call_delegate.clone());
         let clone_repo_task = CloneRepoTask::new();
         let init_service = InitService::new(
             github_repo_repository,

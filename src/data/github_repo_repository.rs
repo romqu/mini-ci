@@ -37,20 +37,6 @@ impl GithubRepoRepository {
             dto: github_repo_list_dto.clone(),
             headers,
         })
-
-        /*        self.api_client.get("").send().and_then(|response| {
-                    let json_result = response.json::<Vec<GithubRepoDto>>();
-
-                    json_result.map(move |result: reqwest::Result<Vec<GithubRepoDto>>| {
-                        result.map(move |dto_list| {
-                            DtoWithHeaders {
-                                dto: dto_list,
-                                headers: response.headers().clone(),
-                            }
-                        })
-                    })
-                })
-        */
     }
 
     pub async fn get_headers(&self, url: &str) -> Result<Response, reqwest::Error> {
