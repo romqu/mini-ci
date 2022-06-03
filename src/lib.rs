@@ -38,12 +38,13 @@ fn init_dependencies() -> Result<InitService, InitError> {
     init_github_api_client(github_token.to_string()).and_then(|api_client| {
         let deploy_info_repository =
             Arc::new(Mutex::new(DeployInfoRepository::new(HashMap::new())));
-        let a = Arc::new(Mutex::new(api_client));
-        let github_repo_repository = GithubRepoRepository::new(a.clone());
-        let github_repo_repository = GithubWebhookRepository::new(api_client);
+        let api_client = Arc::new(Mutex::new(api_client));
+        let github_repo_repository = GithubRepoRepository::new(api_client.clone());
+        let github_webhook_repository = GithubWebhookRepository::new(api_client.clone());
         let clone_repo_task = CloneRepoTask::new();
         let init_service = InitService::new(
             github_repo_repository,
+            github_webhook_repository,
             deploy_info_repository.clone(),
             clone_repo_task,
             args,

@@ -1,12 +1,14 @@
+use std::sync::{Arc, Mutex};
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 pub struct GithubWebhookRepository {
-    api_client: Client,
+    api_client: Arc<Mutex<Client>>,
 }
 
 impl GithubWebhookRepository {
-    pub fn new(api_client: Client) -> GithubWebhookRepository {
+    pub fn new(api_client: Arc<Mutex<Client>>) -> GithubWebhookRepository {
         GithubWebhookRepository { api_client }
     }
 
@@ -24,8 +26,10 @@ impl GithubWebhookRepository {
 
         let response = self
             .api_client
+            .lock()
+            .unwrap()
             .post(url)
-            .body(serde_json::to_string(&dto))
+            .body(serde_json::to_string(&dto).unwrap())
             .send()
             .await?;
 

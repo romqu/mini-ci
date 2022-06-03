@@ -1,14 +1,16 @@
+use std::sync::{Arc, Mutex};
+
 use chrono::{DateTime, Utc};
 use reqwest::{Client, Response};
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 
 pub struct GithubRepoRepository {
-    api_client: Client,
+    api_client: Arc<Mutex<Client>>,
 }
 
 impl GithubRepoRepository {
-    pub fn new(api_client: Client) -> GithubRepoRepository {
+    pub fn new(api_client: Arc<Mutex<Client>>) -> GithubRepoRepository {
         GithubRepoRepository { api_client }
     }
 
@@ -25,7 +27,7 @@ impl GithubRepoRepository {
             per_page, page, owner_type, sort_by, sort_direction
         );
 
-        let response = self.api_client.get(url).send().await?;
+        let response = self.api_client.lock().unwrap().get(url).send().await?;
 
         let headers = response.headers().clone();
 
@@ -52,7 +54,7 @@ impl GithubRepoRepository {
     }
 
     pub async fn get_headers(&self, url: &str) -> Result<Response, reqwest::Error> {
-        self.api_client.head(url).send().await
+        self.api_client.lock().unwrap().head(url).send().await
     }
 }
 
