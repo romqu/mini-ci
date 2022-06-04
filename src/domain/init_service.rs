@@ -8,12 +8,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::data::deploy_info_repository::DeployInfoRepository;
 use crate::data::github_repo_repository::{DtoWithHeaders, GithubRepoDto};
-use crate::data::github_webhook_repository::GithubWebhookRepository;
+use crate::data::github_webhook_repository::{
+    GithhubWebhookConfigDto, GithubWebhookCreateDto, GithubWebhookDto, GithubWebhookRepository,
+};
 use crate::di::start_up_args::StartupArgs;
 use crate::domain::clone_repo_task::{CloneRepoTask, CloneRepoTaskError, CloneRepoTaskResult};
 use crate::domain::init_service::InitServiceError::{
-    CouldNotConvertLinkHeaderValue, CouldNotGetGitFileId, CouldNotGetRepos, CouldNotReadYamlFile,
-    NoReposFound,
+    CouldNotConvertLinkHeaderValue, CouldNotCreateWebhook, CouldNotGetGitFileId, CouldNotGetRepos,
+    CouldNotReadYamlFile, NoReposFound,
 };
 use crate::GithubRepoRepository;
 use crate::header::HeaderMap;
@@ -67,7 +69,6 @@ impl InitService {
 
         Ok(())
     }
-
 
     // TODO: parallel (?)
     async fn get_all_repos_for_user(&self) -> Result<Vec<GithubRepoDto>, InitServiceError> {
@@ -267,7 +268,42 @@ impl InitService {
             .ok_or(CouldNotGetGitFileId)
     }
 
-    fn create_github_webhooks(&self, data_holders: Vec<TempDataHolderThree>) {}
+    async fn create_github_webhooks(&self, data_holders: Vec<TempDataHolderThree>) -> Result<Vec<TempDataHolderFour>, InitServiceError> {
+        data_holders.into_iter().map(|holder| {
+            async move {
+                let repo_name = &holder.github_repo.name;
+                let owner_name = &holder.github_repo.owner.login;
+
+                let config = GithhubWebhookConfigDto {
+                    url: String::from("https://example.com/webhook"),
+                    content_type: String::from("json"),
+                    insecure_ssl: String::from("0"),
+                };
+
+                let dto = GithubWebhookCreateDto {
+                    name: String::from("docker-deploy"),
+                    active: true,
+                    events: vec!["push".to_string()],
+                    config,
+                };
+
+                self.github_webhook_repository
+                    .create_webhook(owner_name.to_string(), repo_name.to_string(), dto)
+                    .await
+                    .map_err(|_| CouldNotCreateWebhook)
+                    .map(|dto| {
+                        TempDataHolderFour {
+                            github_repo: holder.github_repo,
+                            repo_path: holder.repo_path,
+                            git_repository: holder.git_repository,
+                            deploy_info: holder.deploy_info,
+                            deploy_file_git_id: holder.deploy_file_git_id,
+                            github_webhook_dto: *dto,
+                        }
+                    })
+            }
+        }).collect()
+    }
 
     /*    fn save_deploy_infos(
         &mut self,
@@ -314,6 +350,15 @@ pub struct TempDataHolderThree {
     pub deploy_file_git_id: String,
 }
 
+pub struct TempDataHolderFour {
+    pub github_repo: GithubRepoDto,
+    pub repo_path: String,
+    pub git_repository: Repository,
+    pub deploy_info: DeployInfo,
+    pub deploy_file_git_id: String,
+    pub github_webhook_dto: GithubWebhookDto,
+}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeployInfo {
     pub branches: Vec<Branch>,
@@ -334,4 +379,5 @@ pub enum InitServiceError {
     CouldNotCloneRepo,
     CouldNotConvertLinkHeaderValue,
     CouldNotGetGitFileId,
+    CouldNotCreateWebhook,
 }

@@ -17,9 +17,10 @@ impl ApiCallDelegate {
     }
 
     // static string causes hidden lifetime
-    pub async fn execute_post_call<T>(&self, url: String, dto: &T) -> Result<Box<T>, ApiCallError>
+    pub async fn execute_post_call<T, O>(&self, url: String, dto: &T) -> Result<Box<O>, ApiCallError>
         where
             T: ?Sized + Serialize + DeserializeOwned,
+            O: ?Sized + Serialize + DeserializeOwned,
     {
         let body = serde_json::to_string(&dto).map_err(|_| DtoToJsonStringError)?;
 
@@ -31,7 +32,7 @@ impl ApiCallDelegate {
             .send()
             .await
             .map_err(|err| Self::map_and_log_error(err, SendError))?
-            .json::<Box<T>>()
+            .json::<Box<O>>()
             .await
             .map_err(|err| Self::map_and_log_error(err, JsonToDtoError))
     }

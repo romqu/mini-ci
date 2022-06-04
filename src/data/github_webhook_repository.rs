@@ -15,17 +15,21 @@ impl GithubWebhookRepository {
 
     pub async fn create_webhook(
         &self,
-        owner: &'static str,
-        repo: &'static str,
+        owner_name: String,
+        repo_name: String,
         dto: GithubWebhookCreateDto,
-    ) -> Result<Box<GithubWebhookCreateDto>, ApiCallError> {
+    ) -> Result<Box<GithubWebhookDto>, ApiCallError> {
         let url = format!(
-            "https://api.github.com/repos/{owner}/{repo}/hooks",
-            owner = owner,
-            repo = repo
+            "https://api.github.com/repos/{owner_name}/{repo_name}/hooks",
+            owner_name = owner_name,
+            repo_name = repo_name
         );
 
-        self.api_delegate.lock().unwrap().execute_post_call(url, &dto).await
+        self.api_delegate
+            .lock()
+            .unwrap()
+            .execute_post_call(url, &dto)
+            .await
     }
 }
 
@@ -35,7 +39,7 @@ pub struct GithubWebhookCreateDto {
     pub name: String,
     pub active: bool,
     pub events: Vec<String>,
-    pub config: ConfigDto,
+    pub config: GithhubWebhookConfigDto,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,7 +51,7 @@ pub struct GithubWebhookDto {
     pub name: String,
     pub active: bool,
     pub events: Vec<String>,
-    pub config: ConfigDto,
+    pub config: GithhubWebhookConfigDto,
     #[serde(rename = "updated_at")]
     pub updated_at: String,
     #[serde(rename = "created_at")]
@@ -63,7 +67,7 @@ pub struct GithubWebhookDto {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConfigDto {
+pub struct GithhubWebhookConfigDto {
     #[serde(rename = "content_type")]
     pub content_type: String,
     #[serde(rename = "insecure_ssl")]
