@@ -2,7 +2,8 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
-use futures::{FutureExt, StreamExt, TryFutureExt};
+use futures::{FutureExt, stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures::stream::FuturesOrdered;
 use git2::{Object, Repository};
 use serde::{Deserialize, Serialize};
 
@@ -65,7 +66,9 @@ impl InitService {
 
         let temp_data_two_holders = self.get_deploy_info(temp_data_one_holders)?;
 
-        let temp_data_three_holders = self.get_deploy_file_git_id(temp_data_two_holders);
+        let temp_data_three_holders = self.get_deploy_file_git_id(temp_data_two_holders)?;
+
+        let temp_data_four_holders = self.create_github_webhooks(temp_data_three_holders).await?;
 
         Ok(())
     }
@@ -268,9 +271,12 @@ impl InitService {
             .ok_or(CouldNotGetGitFileId)
     }
 
-    async fn create_github_webhooks(&self, data_holders: Vec<TempDataHolderThree>) -> Result<Vec<TempDataHolderFour>, InitServiceError> {
-        data_holders.into_iter().map(|holder| {
-            async move {
+    async fn create_github_webhooks(
+        &self,
+        data_holders: Vec<TempDataHolderThree>,
+    ) -> Result<Vec<TempDataHolderFour>, InitServiceError> {
+        stream::iter(data_holders)
+            .map(|holder| {
                 let repo_name = &holder.github_repo.name;
                 let owner_name = &holder.github_repo.owner.login;
 
@@ -281,7 +287,7 @@ impl InitService {
                 };
 
                 let dto = GithubWebhookCreateDto {
-                    name: String::from("docker-deploy"),
+                    name: String::from("web"),
                     active: true,
                     events: vec!["push".to_string()],
                     config,
@@ -289,20 +295,24 @@ impl InitService {
 
                 self.github_webhook_repository
                     .create_webhook(owner_name.to_string(), repo_name.to_string(), dto)
-                    .await
-                    .map_err(|_| CouldNotCreateWebhook)
-                    .map(|dto| {
-                        TempDataHolderFour {
-                            github_repo: holder.github_repo,
-                            repo_path: holder.repo_path,
-                            git_repository: holder.git_repository,
-                            deploy_info: holder.deploy_info,
-                            deploy_file_git_id: holder.deploy_file_git_id,
-                            github_webhook_dto: *dto,
-                        }
+                    .map(|result| {
+                        result.map(|dto| {
+                            TempDataHolderFour {
+                                github_repo: holder.github_repo,
+                                repo_path: holder.repo_path,
+                                git_repository: holder.git_repository,
+                                deploy_info: holder.deploy_info,
+                                deploy_file_git_id: holder.deploy_file_git_id,
+                                github_webhook_dto: *dto,
+                            }
+                        })
                     })
-            }
-        }).collect()
+                    .map_err(|_| CouldNotCreateWebhook)
+            })
+            .collect::<FuturesOrdered<_>>()
+            .await
+            .try_collect::<Vec<TempDataHolderFour>>()
+            .await
     }
 
     /*    fn save_deploy_infos(

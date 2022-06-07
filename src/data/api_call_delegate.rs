@@ -1,11 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use actix_service::Service;
+use futures::TryFutureExt;
 use reqwest::{Client, Error};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::data::api_call_delegate::ApiCallError::{DtoToJsonStringError, JsonToDtoError, SendError};
+use crate::data::api_call_delegate::ApiCallError::{
+    DtoToJsonStringError, JsonToDtoError, SendError,
+};
 
 pub struct ApiCallDelegate {
     api_client: Arc<Mutex<Client>>,
@@ -17,20 +20,39 @@ impl ApiCallDelegate {
     }
 
     // static string causes hidden lifetime
-    pub async fn execute_post_call<T, O>(&self, url: String, dto: &T) -> Result<Box<O>, ApiCallError>
+    pub async fn execute_post_call<T, O>(
+        &self,
+        url: String,
+        dto: &T,
+    ) -> Result<Box<O>, ApiCallError>
         where
             T: ?Sized + Serialize + DeserializeOwned,
             O: ?Sized + Serialize + DeserializeOwned,
     {
-        let body = serde_json::to_string(&dto).map_err(|_| DtoToJsonStringError)?;
+        let body = serde_json::to_string(dto).map_err(|_| DtoToJsonStringError)?;
 
-        self.api_client
+        println!("{}", url);
+        println!("{}", body);
+
+        let result = self
+            .api_client
             .lock()
             .unwrap()
             .post(url)
             .body(body)
             .send()
-            .await
+            .await;
+
+        match &result {
+            Ok(response) => {
+                println!("{}", response.status());
+            }
+            Err(error) => {
+                println!("{}", error);
+            }
+        }
+
+        result
             .map_err(|err| Self::map_and_log_error(err, SendError))?
             .json::<Box<O>>()
             .await
