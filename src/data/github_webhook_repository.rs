@@ -13,6 +13,25 @@ impl GithubWebhookRepository {
         GithubWebhookRepository { api_delegate }
     }
 
+    pub async fn get_webhooks(
+        &self,
+        owner_name: String,
+        repo_name: String,
+    ) -> Result<Box<Vec<GithubWebhookDto>>, ApiCallError> {
+        let url = format!(
+            "https://api.github.com/repos/{owner_name}/{repo_name}/hooks",
+            owner_name = owner_name,
+            repo_name = repo_name
+        );
+
+        self.api_delegate
+            .lock()
+            .unwrap()
+            .execute_get_call(url)
+            .await
+    }
+
+
     pub async fn create_webhook(
         &self,
         owner_name: String,

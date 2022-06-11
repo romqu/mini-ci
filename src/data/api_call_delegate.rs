@@ -30,10 +30,6 @@ impl ApiCallDelegate {
             O: ?Sized + Serialize + DeserializeOwned,
     {
         let body = serde_json::to_string(dto).map_err(|_| DtoToJsonStringError)?;
-
-        println!("{}", url);
-        println!("{}", body);
-
         let result = self
             .api_client
             .lock()
@@ -58,6 +54,38 @@ impl ApiCallDelegate {
             .await
             .map_err(|err| Self::map_and_log_error(err, JsonToDtoError))
     }
+
+    pub async fn execute_get_call<O>(
+        &self,
+        url: String,
+    ) -> Result<Box<O>, ApiCallError>
+        where
+            O: ?Sized + Serialize + DeserializeOwned,
+    {
+        let result = self
+            .api_client
+            .lock()
+            .unwrap()
+            .get(url)
+            .send()
+            .await;
+
+        match &result {
+            Ok(response) => {
+                println!("{}", response.status());
+            }
+            Err(error) => {
+                println!("{}", error);
+            }
+        }
+
+        result
+            .map_err(|err| Self::map_and_log_error(err, SendError))?
+            .json::<Box<O>>()
+            .await
+            .map_err(|err| Self::map_and_log_error(err, JsonToDtoError))
+    }
+
 
     fn map_and_log_error(err: Error, api_call_error: ApiCallError) -> ApiCallError {
         println!("{}", err);
